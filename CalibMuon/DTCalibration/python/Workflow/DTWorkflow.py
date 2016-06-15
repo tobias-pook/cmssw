@@ -26,8 +26,10 @@ class DTWorkflow(object):
         self.outpath_workflow_mode_tag = ""
         self.output_files = []
         self.input_files = []
-        # cached mamber variables
+        # cached member variables
         self._crab = None
+        self.run_all_command = False
+        self.files_reveived = False
         self._user = ""
         # change to working directory
         os.chdir(self.options.working_dir)
@@ -52,8 +54,8 @@ class DTWorkflow(object):
             errmsg = "Class `{}` does not implement `{}` for workflow %s" % self.options.workflow
             if hasattr(self.options, "workflow_mode"):
                 errmsg += "and workflow mode %s" % self.options.workflow_mode
-            raise NotImplementedError( errmsg.format(my_cls.__class__.__name__,
-                                                     method_name))
+            raise NotImplementedError( errmsg.format(self.__class__.__name__,
+                                                     self.options.command))
         log.debug("Running command %s" % self.options.command)
         # call chosen function
         run_function()
@@ -62,7 +64,7 @@ class DTWorkflow(object):
         """ Abstract implementation of prepare workflow function"""
         errmsg = "Class `{}` does not implement `{}`"
         raise NotImplementedError( errmsg.format(my_cls.__class__.__name__,
-                                                     method_name))
+                                                     "prepare_workflow"))
 
     def all(self):
         """ generalized function to perform several workflow mode commands in chain.
@@ -167,7 +169,7 @@ class DTWorkflow(object):
                                 record = 'DTT0Rcd',
                                 tag = 't0',
                                 connect = connect_path)
-        self.input_files.append(self.options.inputT0DB)
+        self.input_files.append(os.path.abspath(self.options.inputT0DB))
 
     def add_local_vdrift_db(self):
         connect_path = 'sqlite_file:%s' % os.path.basename(self.config.inputVDriftDB)
@@ -176,7 +178,7 @@ class DTWorkflow(object):
                                 record = 'DTMtimeRcd',
                                 tag = 'vDrift',
                                 connect = connect_path)
-        self.input_files.append(self.options.inputVDriftDB)
+        self.input_files.append( os.path.abspath(self.options.inputVDriftDB) )
 
     def prepare_common_submit(self):
         """ Common operations used in most prepare_[workflow_mode]_prepare functions"""
@@ -466,7 +468,10 @@ class DTWorkflow(object):
     @property
     def pset_path(self):
         """ full path to the pset file """
-        return os.path.join( self.local_path, self.pset_name )
+        basepath = os.path.join( self.local_path, "psets")
+        if not os.path.exists( basepath ):
+            os.makedirs( basepath )
+        return os.path.join( basepath, self.pset_name )
 
     def write_pset_file(self):
         if not hasattr(self, "process"):
@@ -489,12 +494,20 @@ class DTWorkflow(object):
 
     def load_options(self, config_file_path):
         if not os.path.exists(config_file_path):
-            raise IOError("File %s not found" % config_file_name)
+            raise IOError("File %s not found" % config_file_path)
         with open(config_file_path, "r") as input_file:
             config_json = json.load(input_file)
             for key, val in config_json.items():
                 if not hasattr(self.options, key) or not getattr(self.options, key):
                     setattr(self.options, key, val)
+
+    def load_options_command(self, command ):
+        """Load options for previous command in workflow """
+        #~ if not self.run_all_command:s
+        if not self.options.config_path:
+            self.options.config_path = os.path.join(self.local_path,
+                                                    self.get_config_name(command))
+        self.load_options( self.options.config_path )
 
     @classmethod
     def add_parser_options(cls, parser):
@@ -512,8 +525,12 @@ class DTWorkflow(object):
             help="set reference run number (typically first or last run in list)")
         common_opts_group.add_argument("--trial", type=int, default = 1,
             help="trial number used in the naming of output directories")
+        common_opts_group.add_argument("--label", default="dtCalibration",
+            help="label used in the naming of workflow output default:%(default)s")
         common_opts_group.add_argument("--datasettype", default = "Data",
             choices=["Data", "Cosmics", "MC"], help="Type of input dataset default: %(default)s")
+        common_opts_group.add_argument("--config-path",
+            help="Path to alternative workflow config json file, e.g. used to submit the job")
         common_opts_group.add_argument("--user", default="",
             help="User used e.g. for submission. Defaults to user HN name")
         common_opts_group.add_argument("--working-dir",
@@ -560,8 +577,6 @@ class DTWorkflow(object):
             help="Flag if run on RAW dataset")
         submission_opts_group.add_argument("--globaltag", required = True,
         help="global tag identifier (with the '::All' string, if necessary)")
-        submission_opts_group.add_argument("--label", default="dtCalibration",
-            help="label used in the naming of workflow output default:%(default)s")
         submission_opts_group.add_argument("--runselection", default = [], nargs="+",
             help="run list or range")
         submission_opts_group.add_argument("--filesPerJob", default = 5,
@@ -588,8 +603,6 @@ class DTWorkflow(object):
         check_opts_parser = argparse.ArgumentParser(add_help=False)
         check_opts_group = check_opts_parser.add_argument_group(
             description ="Options for Job submission")
-        check_opts_group.add_argument("--config-path",
-            help="Path to alternative config json file used to submit the job")
         check_opts_group.add_argument("--check-interval", default = 600,type=int,
             help="Time in seconds between check operations default: %(default)s")
         check_opts_group.add_argument("--max-checks", default =1000, type=int,
