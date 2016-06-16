@@ -324,6 +324,8 @@ class DTWorkflow(object):
         pfn_base_path = json.loads(raw_json)["phedex"]["mapping"][0]["pfn"]
         pfn_path = pfn_base_path + crabtask.crabConfig.Data.outLFNDirBase[1:]
         log.info("Getting list of files on local storage element")
+        log.info(pfn_path)
+        log.info("lcg-lsR.sh %s" % pfn_path)
         process = subprocess.Popen( "lcg-lsR.sh %s" % pfn_path,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
@@ -335,6 +337,7 @@ class DTWorkflow(object):
                 continue
             filename = "store/" + line.split()[-1].split("/store/")[-1]
             lfn_files.append(filename)
+        log.info(lfn_files)
         return lfn_files, pfn_path, pfn_base_path
 
     def get_output_files(self, crabtask, output_path, extension=".root"):
@@ -346,6 +349,9 @@ class DTWorkflow(object):
             os.makedirs(abs_resultpath)
         existing_files = glob.glob( abs_resultpath + "/*"+ extension)
         log.info("Copying output files to local disk")
+        if not lfn_files:
+            log.error("Found no files in remote storage element, exiting")
+            sys.exit(1)
         for lfn_path in lfn_files:
             if not crabtask.crabConfig.Data.outputDatasetTag in lfn_path:
                 continue
@@ -359,6 +365,7 @@ class DTWorkflow(object):
                 command = [ "srmcp",
                             remote_file_path,
                             "file:///" + local_file_path ]
+                log.info(" ".join(command))
                 process = subprocess.Popen(command, stdout=subprocess.PIPE)
                 process.communicate()
                 if process.returncode==0:
