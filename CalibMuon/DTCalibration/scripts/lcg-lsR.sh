@@ -39,7 +39,7 @@ function recls {
   local S=$1
 
   # Get the file rights (ie.g. drwxr-x---)
-  prot=`lcg-ls -ld $LCGLS_OPTS $S | head -1 | cut -d ' ' -f1`
+  prot=`lcg-ls -ld $LCGLS_OPTS "$S" | head -1 | cut -d ' ' -f1`
   difi=${prot:0:1}
 
   # Is this a directory?
