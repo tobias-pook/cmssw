@@ -362,7 +362,7 @@ class DTWorkflow(object):
             remote_file_path = pfn_base_path + lfn_path
             tries = 0
             while tries < 3:
-                command = [ "srmcp",
+                command = [ "lcg-cp",
                             remote_file_path,
                             "file:///" + local_file_path ]
                 log.info(" ".join(command))
