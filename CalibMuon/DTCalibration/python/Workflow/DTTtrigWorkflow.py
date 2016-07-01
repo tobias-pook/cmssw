@@ -237,8 +237,6 @@ class DTttrigWorkflow( DTWorkflow ):
                      super(DTttrigWorkflow,cls).get_write_options_parser()
                     ],
             help = "Write result from root output to text file")
-        ttrig_timeboxes_write_parser.add_argument("config-path",
-            help="Path to the crab config file used to submit the job")
 
         ttrig_timeboxes_write_parser = ttrig_timeboxes_subparsers.add_parser(
             "all",
