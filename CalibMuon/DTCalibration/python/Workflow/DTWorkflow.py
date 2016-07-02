@@ -203,18 +203,18 @@ class DTWorkflow(object):
                            connect='sqlite_file:',
                            label='',):
 
-        from CondCore.DBCommon.CondDBSetup_cfi import CondDBSetup
+        from CondCore.CondDB.CondDB_cfi import CondDB
 
         calibDB = cms.ESSource("PoolDBESSource",
-                               CondDBSetup,
+                               CondDB,
                                timetype = cms.string('runnumber'),
                                toGet = cms.VPSet(cms.PSet(
                                    record = cms.string(record),
                                    tag = cms.string(tag),
                                    label = cms.untracked.string(label)
-                               )),
-                               connect = cms.string( connect ),
-                               authenticationMethod = cms.untracked.uint32(0))
+                                    )),
+                               )
+        calibDB.connect = cms.string( connect )
         #if authPath: calibDB.DBParameters.authenticationPath = authPath
         if 'oracle:' in connect:
             calibDB.DBParameters.authenticationPath = '/afs/cern.ch/cms/DB/conddb'
