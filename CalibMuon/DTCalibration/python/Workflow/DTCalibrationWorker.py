@@ -1,4 +1,5 @@
 import sys,os,time
+import subprocess
 from tools import loadCmsProcess
 from DTWorkflow import DTWorkflow
 from DTTtrigWorkflow import DTttrigWorkflow
@@ -17,7 +18,7 @@ class DTCalibrationWorker(object):
     def __init__(self, options):
         self.options = options
         if not self.has_crab3_env:
-            self.setup_crab_env(self)
+            self.setup_crab_env()
 
     def run(self):
         # get class object dependent on workflow
@@ -35,12 +36,15 @@ class DTCalibrationWorker(object):
     def setup_crab_env(self):
         # following
         #http://.com/questions/3503719/emulating-bash-source-in-python
-        command = ['bash', '-c', 'source /cvmfs/cms.cern.ch/crab3/crab.sh && env']
+        command = ['bash', '-c', 'unset module;source /cvmfs/cms.cern.ch/crab3/crab_light.sh && env']
         proc = subprocess.Popen(command, stdout = subprocess.PIPE)
 
+        print 'setting up crab'
         for line in proc.stdout:
           (key, _, value) = line.partition("=")
-          os.environ[key] = value
+          os.environ[key] = value.replace("\n","")
+        for path in os.environ['PYTHONPATH'].split(':'):
+            sys.path.append(path)
         proc.communicate()
 
     @classmethod

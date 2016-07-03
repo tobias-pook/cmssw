@@ -4,7 +4,6 @@ import logging
 import tools
 import FWCore.ParameterSet.Config as cms
 from DTWorkflow import DTWorkflow
-from CalibMuon.DTCalibration.Workflow.Crabtools.crabFunctions import CrabController, CrabTask
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +55,7 @@ class DTvdriftWorkflow( DTWorkflow ):
                 self.options.config_path = os.path.join(self.local_path,
                                                         self.get_config_name("write"))
             self.load_options( self.options.config_path )
-        crabtask = CrabTask(crab_config = self.crab_config_filepath)
+        crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath)
         self.fill_options_from_crab_config()
         output_path = os.path.join( self.local_path, "unmerged_results" )
         self.get_output_files(crabtask, output_path)

@@ -6,10 +6,9 @@ import subprocess
 import time, datetime
 import urllib2
 import json
+from importlib import import_module
 
 import tools
-from CalibMuon.DTCalibration.Workflow.Crabtools.crabConfigParser import CrabConfigParser
-from CalibMuon.DTCalibration.Workflow.Crabtools.crabFunctions import CrabController, CertInfo, CrabTask
 import FWCore.ParameterSet.Config as cms
 log = logging.getLogger(__name__)
 
@@ -17,6 +16,9 @@ class DTWorkflow(object):
     """ This is the base class for all DTWorkflows and contains some
         common tasks """
     def __init__(self, options):
+        # perform imports only when creating instance. This allows to use the classmethods e.g.for
+        # CLI construction before crab is sourced.
+        self.crabFunctions =  import_module('CalibMuon.DTCalibration.Workflow.Crabtools.crabFunctions')
         self.options = options
         self.digilabel = "muonDTDigis"
 
@@ -90,7 +92,7 @@ class DTWorkflow(object):
         self.crab.submit(full_crab_config_filename)
         log.info("crab job submitted. Waiting 30 seconds before first status call")
         time.sleep( 30 )
-        task = CrabTask(crab_config = full_crab_config_filename)
+        task = self.crabFunctions.CrabTask(crab_config = full_crab_config_filename)
         task.update()
         success_states = ( 'QUEUED', 'SUBMITTED', "COMPLETED", "FINISHED")
         if task.state in success_states:
@@ -103,8 +105,8 @@ class DTWorkflow(object):
     def check(self):
         """ Function to check status of submitted crab tasks """
         print self.crab_config_filepath
-        task = CrabTask(crab_config = self.crab_config_filepath,
-                        initUpdate = False)
+        task = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath,
+                                            initUpdate = False)
         for n_check in range(self.options.max_checks):
             task.update()
             if task.state in ( "COMPLETED"):
@@ -232,11 +234,11 @@ class DTWorkflow(object):
                 errmsg = "No valid proxy, please create a proxy before"
                 errmsg += "or crab might use wrong voGroup and role"
                 raise ValueError(errmsg)
-            self.cert_info = CertInfo()
+            self.cert_info = self.crabFunctions.CertInfo()
             if self.cert_info.voGroup:
-                self._crab = CrabController(voGroup = self.cert_info.voGroup)
+                self._crab = self.crabFunctions.CrabController(voGroup = self.cert_info.voGroup)
             else:
-                self._crab = CrabController()
+                self._crab = self.crabFunctions.CrabController()
         return self._crab
 
     def voms_proxy_time_left(self):
@@ -249,6 +251,7 @@ class DTWorkflow(object):
 
     def create_crab_config(self):
         """ Create a crab config object dependent on the chosen command option"""
+        from CalibMuon.DTCalibration.Workflow.Crabtools.crabConfigParser import CrabConfigParser
         self.crab_config = CrabConfigParser()
         """ Fill common options in crab config """
         ### General section

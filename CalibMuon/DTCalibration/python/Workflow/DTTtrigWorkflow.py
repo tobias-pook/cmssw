@@ -4,7 +4,6 @@ import logging
 import tools
 import FWCore.ParameterSet.Config as cms
 from DTWorkflow import DTWorkflow
-from CalibMuon.DTCalibration.Workflow.Crabtools.crabFunctions import CrabController, CrabTask
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +67,7 @@ class DTttrigWorkflow( DTWorkflow ):
     def prepare_timeboxes_write(self):
         self.outpath_workflow_mode_tag = "TimeBoxes"
         self.load_options_command("submit")
-        crabtask = CrabTask(crab_config = self.crab_config_filepath)
+        crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath)
         output_path = os.path.join( self.local_path, "unmerged_results" )
         result_path = os.path.abspath(os.path.join(self.local_path,"results"))
         merged_file = os.path.join(result_path, self.output_file)
