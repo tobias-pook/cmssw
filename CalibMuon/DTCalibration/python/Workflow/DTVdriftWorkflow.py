@@ -20,6 +20,21 @@ class DTvdriftWorkflow( DTWorkflow ):
         self.output_file = output_file_dict[self.options.workflow_mode]
         self.output_files = [self.output_file]
 
+    def prepare_workflow(self):
+        """ Generalized function to prepare workflow dependent on workflow mode"""
+        function_name = "prepare_" + self.options.workflow_mode + "_" + self.options.command
+
+        try:
+            fill_function = getattr(self, function_name)
+        except AttributeError:
+            errmsg = "Class `{}` does not implement `{}`"
+            raise NotImplementedError( errmsg.format(my_cls.__class__.__name__,
+                                                     method_name))
+        log.debug("Preparing workflow with function %s" % function_name)
+        # call chosen function
+        fill_function()
+        # dump used options
+
     def prepare_segment_submit(self):
         self.outpath_workflow_mode_tag = "Segments"
         self.pset_name = 'dtVDriftSegmentCalibration_cfg.py'
