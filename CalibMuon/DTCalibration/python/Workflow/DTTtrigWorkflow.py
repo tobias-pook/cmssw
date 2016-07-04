@@ -93,6 +93,7 @@ class DTttrigWorkflow( DTWorkflow ):
     def prepare_timeboxes_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
+        self.outpath_workflow_mode_tag = "TimeBoxes"
         self.all_commands=["submit", "check","write"]
 
     def prepare_residuals_submit(self):
@@ -237,7 +238,7 @@ class DTttrigWorkflow( DTWorkflow ):
                     ],
             help = "Write result from root output to text file")
 
-        ttrig_timeboxes_write_parser = ttrig_timeboxes_subparsers.add_parser(
+        ttrig_timeboxes_all_parser = ttrig_timeboxes_subparsers.add_parser(
             "all",
             parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
                      super(DTttrigWorkflow,cls).get_submission_options_parser(),

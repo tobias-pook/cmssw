@@ -11,16 +11,17 @@ class DTvdriftWorkflow( DTWorkflow ):
     """ This class creates and performce / submits vdrift workflow jobs"""
     def __init__(self, options):
         # call parent constructor
-        super( DTttrigWorkflow, self ).__init__( options )
+        super( DTvdriftWorkflow, self ).__init__( options )
 
         self.outpath_command_tag = "VdriftCalibration"
         self.outpath_workflow_mode_tag = ""
-        output_file_dict ={ "segment" : "DTTimeBoxes.root",
+        output_file_dict ={ "segment" : "DTVDriftHistos.root",
                             }
         self.output_file = output_file_dict[self.options.workflow_mode]
         self.output_files = [self.output_file]
 
     def prepare_segment_submit(self):
+        self.outpath_workflow_mode_tag = "Segments"
         self.pset_name = 'dtVDriftSegmentCalibration_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtResidualCalibration_cfg'
         if self.options.datasettype == "Cosmics":
@@ -42,24 +43,43 @@ class DTvdriftWorkflow( DTWorkflow ):
 
         self.write_pset_file()
 
-    def prepare_segment_submit(self):
-        pass
+    def prepare_segment_check(self):
+        self.outpath_workflow_mode_tag = "Segments"
+        self.load_options_command("submit")
 
     def prepare_segment_write(self):
         self.pset_name = 'dtVDriftSegmentWriter_cfg.py'
         self.pset_template = 'dtVDriftSegmentWriter_cfg.py'
-
         self.outpath_workflow_mode_tag = "Segments"
-        if not command == "all":
-            if not self.options.config_path:
-                self.options.config_path = os.path.join(self.local_path,
-                                                        self.get_config_name("write"))
-            self.load_options( self.options.config_path )
+        self.load_options_command("submit")
         crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath)
-        self.fill_options_from_crab_config()
         output_path = os.path.join( self.local_path, "unmerged_results" )
-        self.get_output_files(crabtask, output_path)
+        result_path = os.path.abspath(os.path.join(self.local_path,"results"))
+        merged_file = os.path.join(result_path, self.output_file)
+        if not self.options.skip_stageout or self.files_reveived:
+            self.get_output_files(crabtask, output_path)
+            log.info("Received files from storage element")
+            log.info("Using hadd to merge output files")
+            if not os.path.exists(result_path):
+                os.makedirs(result_path)
+        returncode = tools.haddLocal(output_path, merged_file)
+        if returncode != 0:
+            raise RuntimeError("Failed to merge files with hadd")
+        self.process = tools.loadCmsProcess(self.pset_template)
+        if self.options.inputVDriftDB:
+            add_local_vdrift_db(self)
+        vdrift_db = "vDrift_segment"+ crabtask.crabConfig.Data.outputDatasetTag + ".db"
+        vdrift_db = os.path.join(result_path, ttrig_uncorrected)
+        self.process.dtVDriftSegmentWriter.rootFileName = "file:///" + merged_file
+        self.process.PoolDBOutputService.connect = 'sqlite_file:%s' % vdrift_db
+        self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
+        self.write_pset_file()
 
+    def prepare_segment_all(self):
+        # individual prepare functions for all tasks will be called in
+        # main implementation of all
+        self.outpath_workflow_mode_tag = "Segments"
+        self.all_commands=["submit", "check","write"]
 
     @classmethod
     def add_parser_options(cls, subparser_container):
@@ -73,26 +93,43 @@ class DTvdriftWorkflow( DTWorkflow ):
         vdrift_subparsers = vdrift_parser.add_subparsers( dest="workflow_mode",
             help="Possible workflow modes",)
         ## Add all workflow modes for ttrig
-        vdrift_timeboxes_subparser = vdrift_subparsers.add_parser( "segment",
+        vdrift_segment_subparser = vdrift_subparsers.add_parser( "segment",
             #parents=[mutual_parent_parser, common_parent_parser],
             help = "" )
         ################################################################
-        #        Sub parser options for workflow mode timeboxes        #
+        #        Sub parser options for workflow mode segment          #
         ################################################################
         vdrift_segment_subparsers = vdrift_segment_subparser.add_subparsers( dest="command",
-            help="Possible commands for timeboxes")
-        vdrift_segment_submit_parser = ttrig_timeboxes_subparsers.add_parser(
+            help="Possible commands for segments")
+        vdrift_segment_submit_parser = vdrift_segment_subparsers.add_parser(
             "submit",
-            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
-                    super(DTttrigWorkflow,cls).get_submission_options_parser(),
-                    super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
-                    super(DTttrigWorkflow,cls).get_input_db_options_parser()],
+            parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
+                    super(DTvdriftWorkflow,cls).get_submission_options_parser(),
+                    super(DTvdriftWorkflow,cls).get_local_input_db_options_parser(),
+                    super(DTvdriftWorkflow,cls).get_input_db_options_parser()],
             help = "Submit job to the GRID via crab3")
         vdrift_segment_submit_parser.add_argument("--inputTtrigDB",
             help="Local alternative calib ttrig db")
 
-        vdrift_residuals_check_parser = ttrig_residuals_subparsers.add_parser(
+        vdrift_segment_check_parser = vdrift_segment_subparsers.add_parser(
             "check",
-            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
-                    super(DTttrigWorkflow,cls).get_check_options_parser(),],
+            parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
+                    super(DTvdriftWorkflow,cls).get_check_options_parser(),],
             help = "Check status of submitted jobs")
+
+        vdrift_segment_write_parser = vdrift_segment_subparsers.add_parser(
+            "write",
+            parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_write_options_parser()
+                    ],
+            help = "Write result from root output to text file")
+
+        vdrift_segment_all_parser = vdrift_segment_subparsers.add_parser(
+            "all",
+            parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_submission_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_check_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_input_db_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_write_options_parser()
+                    ],
+            help = "Perform all steps: submit, check, write in this order")
