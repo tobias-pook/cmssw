@@ -65,7 +65,7 @@ class DTWorkflow(object):
     def prepare_workflow(self):
         """ Abstract implementation of prepare workflow function"""
         errmsg = "Class `{}` does not implement `{}`"
-        raise NotImplementedError( errmsg.format(my_cls.__class__.__name__,
+        raise NotImplementedError( errmsg.format(self.__class__.__name__,
                                                      "prepare_workflow"))
 
     def all(self):
@@ -569,6 +569,8 @@ class DTWorkflow(object):
             description ="Options for local input databases")
         db_opts_parser.add_argument("--inputVDriftDB",
             help="Local alternative VDrift database")
+        db_opts_parser.add_argument("--inputTtrigDB",
+            help="Local alternative Ttrig database")
         db_opts_parser.add_argument("--inputT0DB",
             help="Local alternative T0 database")
         db_opts_parser.add_argument("--inputCalibDB",
