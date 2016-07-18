@@ -25,7 +25,6 @@ class DTWorkflow(object):
         # These variables are determined in the derived classes
         self.pset_name = ""
         self.outpath_command_tag = ""
-        self.outpath_workflow_mode_tag = ""
         self.output_files = []
         self.input_files = []
         # cached member variables
@@ -107,6 +106,9 @@ class DTWorkflow(object):
         print self.crab_config_filepath
         task = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath,
                                             initUpdate = False)
+        if self.options.no_exec:
+            log.info("Nothing to check in no-exec mode")
+            return True
         for n_check in range(self.options.max_checks):
             task.update()
             if task.state in ( "COMPLETED"):
@@ -146,6 +148,8 @@ class DTWorkflow(object):
         return False
 
     def write(self):
+        if self.options.no_exec:
+            return True
         returncode = self.runCMSSWtask()
         if returncode != 0:
             raise RuntimeError("Failed to use cmsRun for pset %s" % self.pset_name)
@@ -182,8 +186,33 @@ class DTWorkflow(object):
                                 connect = connect_path)
         self.input_files.append( os.path.abspath(self.options.inputVDriftDB) )
 
+    def add_local_calib_db(self):
+        label = ''
+        if self.options.datasettype == "Cosmics":
+            label = 'cosmics'
+        connect = os.path.abspath(self.options.inputCalibDB)
+        self.addPoolDBESSource( process = self.process,
+                                moduleName = 'calibDB',
+                                record = 'DTTtrigRcd',
+                                tag = 'ttrig',
+                                connect = str("sqlite_file:%s" % connect),
+                                label = label
+                                )
+        self.input_files.append( os.path.abspath(self.options.inputCalibDB) )
+
+    def add_local_custom_db(self):
+        for option in ('inputDBRcd', 'connectStrDBTag'):
+            if hasattr(self.options, option) and not getattr(self.options, option):
+                raise ValueError("Option %s needed for custom input db" % option)
+        self.addPoolDBESSource( process = self.process,
+                                    record = self.options.inputDBRcd,
+                                    tag = self.options.inputDBTag,
+                                    connect = self.options.connectStrDBTag,
+                                    moduleName = 'customDB%s' % self.options.inputDBRcd
+                                   )
+
     def prepare_common_submit(self):
-        """ Common operations used in most prepare_[workflow_mode]_prepare functions"""
+        """ Common operations used in most prepare_[workflow_mode]_submit functions"""
         if not self.options.run:
             raise ValueError("Option run is required for submission!")
         if hasattr(self.options, "inputT0DB") and self.options.inputT0DB:
@@ -192,10 +221,30 @@ class DTWorkflow(object):
         if hasattr(self.options, "inputVDriftDB") and self.options.inputVDriftDB:
             self.add_local_vdrift_db()
 
+        if hasattr(self.options, "inputDBTag") and self.options.inputDBTag:
+            self.add_local_custom_db()
+
         if self.options.run_on_RAW:
             self.add_raw_option()
         if self.options.preselection:
             self.add_preselection()
+
+    def prepare_common_write(self):
+        """ Common operations used in most prepare_[workflow_mode]_erite functions"""
+        self.load_options_command("submit")
+        output_path = os.path.join( self.local_path, "unmerged_results" )
+        merged_file = os.path.join(self.result_path, self.output_file)
+        crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath,
+                                               initUpdate = False)
+        if not (self.options.skip_stageout or self.files_reveived or self.options.no_exec):
+            self.get_output_files(crabtask, output_path)
+            log.info("Received files from storage element")
+            log.info("Using hadd to merge output files")
+        if not self.options.no_exec:
+            returncode = tools.haddLocal(output_path, merged_file)
+            if returncode != 0:
+                raise RuntimeError("Failed to merge files with hadd")
+        return crabtask.crabConfig.Data.outputDatasetTag
 
     def addPoolDBESSource( self,
                            process,
@@ -430,6 +479,12 @@ class DTWorkflow(object):
                                  'v' + str(self.options.trial),
                                 )
     @property
+    def outpath_workflow_mode_tag(self):
+        if not self.options.workflow_mode in self.outpath_workflow_mode_dict:
+            raise NotImplementedError("%s missing in outpath_workflow_mode_dict" % self.options.workflow_mode)
+        return self.outpath_workflow_mode_dict[self.options.workflow_mode]
+
+    @property
     def user(self):
         if self._user:
             return self._user
@@ -465,6 +520,14 @@ class DTWorkflow(object):
             return os.path.join( self.options.working_dir,
                                  prefix,
                                  self.outpath_command_tag )
+
+    @property
+    def result_path(self):
+        result_path = os.path.abspath(os.path.join(self.local_path,"results"))
+        if not os.path.exists(result_path):
+            os.makedirs(result_path)
+        return result_path
+
     @property
     def pset_template_base_bath(self):
         """ Base path to folder containing pset files for cmsRun"""
@@ -559,6 +622,9 @@ class DTWorkflow(object):
             help="Record used for PoolDBESSource")
         db_opts_parser.add_argument("--inputDBTag",
             help="Tag used for PoolDBESSource")
+        db_opts_parser.add_argument("--connectStrDBTag",
+            default='frontier://FrontierProd/CMS_COND_31X_DT',
+            help="connect string default:%(default)s")
         return db_opts_parser
 
     @classmethod
@@ -569,12 +635,10 @@ class DTWorkflow(object):
             description ="Options for local input databases")
         db_opts_parser.add_argument("--inputVDriftDB",
             help="Local alternative VDrift database")
-        db_opts_parser.add_argument("--inputTtrigDB",
+        db_opts_parser.add_argument("--inputCalibDB",
             help="Local alternative Ttrig database")
         db_opts_parser.add_argument("--inputT0DB",
             help="Local alternative T0 database")
-        db_opts_parser.add_argument("--inputCalibDB",
-            help="Local alternative calib database")
         return db_opts_parser
 
     @classmethod
@@ -597,8 +661,6 @@ class DTWorkflow(object):
             help="Number of lumi sections to process for RAW / Comsics grid jobs")
         submission_opts_group.add_argument("--preselection", dest="preselection",
             help="configuration fragment and sequence name, separated by a ':', defining a pre-selection filter")
-        submission_opts_group.add_argument("--connect", dest="connectStrDBTag",
-            default='frontier://FrontierProd/CMS_COND_31X_DT', help="connect string default:%(default)s")
         submission_opts_group.add_argument("--output-site", default = "T2_DE_RWTH",
             help="Site used for stage out of results")
         submission_opts_group.add_argument("--ce-black-list", default = [], nargs="+",

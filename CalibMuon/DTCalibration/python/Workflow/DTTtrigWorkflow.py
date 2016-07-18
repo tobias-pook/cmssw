@@ -14,11 +14,17 @@ class DTttrigWorkflow( DTWorkflow ):
         super( DTttrigWorkflow, self ).__init__( options )
 
         self.outpath_command_tag = "TTrigCalibration"
-        self.outpath_workflow_mode_tag = ""
+        # Dict to map workflow modes to output file name
         output_file_dict ={ "timeboxes" : "DTTimeBoxes.root",
                             "residuals" : 'residuals.root',
-                            "validation" : "validation.root"
+                            "validation" : "DQM.root"
                             }
+        # Dict to map workflow modes to output folders in main path
+        self.outpath_workflow_mode_dict = {
+                                            "timeboxes" : "TimeBoxes",
+                                            "residuals" : "Residuals",
+                                            "validation" : "TtrigValidation"
+                                           }
         self.output_file = output_file_dict[self.options.workflow_mode]
         self.output_files = [self.output_file]
 
@@ -30,13 +36,16 @@ class DTttrigWorkflow( DTWorkflow ):
             fill_function = getattr(self, function_name)
         except AttributeError:
             errmsg = "Class `{}` does not implement `{}`"
-            raise NotImplementedError( errmsg.format(my_cls.__class__.__name__,
-                                                     method_name))
+            raise NotImplementedError( errmsg.format(self.__class__.__name__,
+                                                     function_name))
         log.debug("Preparing workflow with function %s" % function_name)
         # call chosen function
         fill_function()
         # dump used options
 
+    ####################################################################
+    #                     Prepare functions for timeboxes              #
+    ####################################################################
     def prepare_timeboxes_submit(self):
         self.pset_name = 'dtTTrigCalibration_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtTTrigCalibration_cfg'
@@ -47,41 +56,20 @@ class DTttrigWorkflow( DTWorkflow ):
         self.process.GlobalTag.globaltag = self.options.globaltag
         self.process.dtTTrigCalibration.rootFileName = self.output_file
         self.process.dtTTrigCalibration.digiLabel = self.digilabel
-        self.outpath_workflow_mode_tag = "TimeBoxes"
 
         if self.options.inputDBTag:
-            moduleName = 'customDB%s' % self.options.inputDBRcd
-            self.addPoolDBESSource( self.process,
-                                    moduleName,
-                                    self.options.inputDBRcd,
-                                    self.options.inputDBTag)
-
+            self.add_local_custom_db()
         self.prepare_common_submit()
-
         self.write_pset_file()
 
     def prepare_timeboxes_check(self):
-        self.outpath_workflow_mode_tag = "TimeBoxes"
         self.load_options_command("submit")
 
     def prepare_timeboxes_write(self):
-        self.outpath_workflow_mode_tag = "TimeBoxes"
-        self.load_options_command("submit")
-        crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath)
-        output_path = os.path.join( self.local_path, "unmerged_results" )
-        result_path = os.path.abspath(os.path.join(self.local_path,"results"))
-        merged_file = os.path.join(result_path, self.output_file)
-        if not self.options.skip_stageout or self.files_reveived:
-            self.get_output_files(crabtask, output_path)
-            log.info("Received files from storage element")
-            log.info("Using hadd to merge output files")
-            if not os.path.exists(result_path):
-                os.makedirs(result_path)
-        returncode = tools.haddLocal(output_path, merged_file)
-        if returncode != 0:
-            raise RuntimeError("Failed to merge files with hadd")
-        ttrig_uncorrected = "trig_uncorrected_"+ crabtask.crabConfig.Data.outputDatasetTag + ".db"
-        ttrig_uncorrected = os.path.join(result_path, ttrig_uncorrected)
+        tag = self.prepare_common_write()
+        merged_file = os.path.join(self.result_path, self.output_file)
+        ttrig_uncorrected = "trig_uncorrected_"+ tag + ".db"
+        ttrig_uncorrected = os.path.join(self.result_path, ttrig_uncorrected)
         self.pset_name = 'dtTTrigWriter_cfg.py'
         self.pset_template = "CalibMuon.DTCalibration.dtTTrigWriter_cfg"
         self.process = tools.loadCmsProcess(self.pset_template)
@@ -93,11 +81,12 @@ class DTttrigWorkflow( DTWorkflow ):
     def prepare_timeboxes_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.outpath_workflow_mode_tag = "TimeBoxes"
         self.all_commands=["submit", "check","write"]
 
+    ####################################################################
+    #                      prepare functions for residuals             #
+    ####################################################################
     def prepare_residuals_submit(self):
-        self.outpath_workflow_mode_tag = "Residuals"
         self.pset_name = 'dtResidualCalibration_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtResidualCalibration_cfg'
         if self.options.datasettype == "Cosmics":
@@ -106,90 +95,85 @@ class DTttrigWorkflow( DTWorkflow ):
         #~ self.process.GlobalTag.globaltag = cms.string(self.options.globaltag)
         self.process.GlobalTag.globaltag = self.options.globaltag
         self.process.dtResidualCalibration.rootFileName = self.output_file
-
-        self.create_crab_config()
-        if self.options.inputDBTag:
-            moduleName = 'customDB%s' % self.options.inputDBRcd
-            self.addPoolDBESSource( process = self.process,
-                                    moduleName = moduleName,
-                                    record = self.options.inputDBRcd,
-                                    tag = self.options.inputDBTag,
-                                    connect = self.options.connectStrDBTag)
-
-        if self.options.inputCalibDB:
-            self.addPoolDBESSource( process = self.process,
-                                    moduleName = 'calibDB',
-                                    record = 'DTTtrigRcd',
-                                    tag = 'ttrig',
-                                    connect = 'sqlite_file:%s' % os.path.basename(self.options.inputCalibDB))
-            self.input_files.append(os.path.abspath( self.options.inputCalibDB ))
-
         self.prepare_common_submit()
-
+        if self.options.inputCalibDB:
+            self.add_local_calib_db()
         self.write_pset_file()
 
     def prepare_residuals_check(self):
-        self.outpath_workflow_mode_tag = "Residuals"
         self.load_options_command("submit")
 
-    def correction(self):
-        returncode = self.runCMSSWtask()
-        if returncode != 0:
-            raise RuntimeError("Failed to use cmsRun for pset %s" % self.pset_name)
-
     def prepare_residuals_correction(self):
-        self.outpath_workflow_mode_tag = "Residuals"
         self.pset_name = "dtTTrigResidualCorrection_cfg.py"
         self.pset_template = 'CalibMuon.DTCalibration.dtTTrigResidualCorrection_cfg'
         self.process = tools.loadCmsProcess(self.pset_template)
         self.load_options_command("submit")
-        self.process.source.firstRun = self.options.run
+        self.process.source.firstRun = cms.untracked.uint32(self.options.run)
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
 
-        result_path = os.path.abspath(os.path.join(self.local_path,"results"))
-        if not os.path.exists(result_path):
-            os.makedirs(result_path)
-        output_path = os.path.join( self.local_path, "unmerged_results" )
-        print output_path
-        merged_file = os.path.join(result_path, self.output_file)
-        if not self.options.skip_stageout or self.files_reveived:
-            self.get_output_files(crabtask, output_path)
-            log.info("Received files from storage element")
-            log.info("Using hadd to merge output files")
-            if not os.path.exists(result_path):
-                os.makedirs(result_path)
-        returncode = tools.haddLocal(output_path, merged_file)
-        if returncode != 0:
-            raise RuntimeError("Failed to merge files with hadd")
+        tag = self.prepare_common_write()
         if self.options.inputT0DB:
             log.warning("Option inputT0DB not supported for residual corrections")
 
+        if self.options.inputDBTag:
+            self.add_local_custom_db()
         if self.options.inputVDriftDB:
-            self.addPoolDBESSource( process = self.process,
-                                    moduleName = 'vDriftDB',
-                                    record = 'DTMtimeRcd',
-                                    tag = 'vDrift',
-                                    connect = 'sqlite_file:%s' % os.path.abspath(self.config.inputVDriftDB))
+            self.add_local_vdrift_db()
         if self.options.inputCalibDB:
-            self.addPoolDBESSource( process = self.process,
-                                    moduleName = 'calibDB',
-                                    record = 'DTTtrigRcd',
-                                    tag = 'ttrig',
-                                    #~ connect = cms.string('sqlite_file:%s' % os.path.abspath(self.options.inputCalibDB))
-                                    connect = str("sqlite_file:%s" % os.path.abspath(self.options.inputCalibDB))
-                                    )
+            self.add_local_calib_db()
         # Change DB label if running on Cosmics
         if self.options.datasettype == "Cosmics":
             self.process.dtTTrigResidualCorrection.dbLabel = 'cosmics'
             self.process.dtTTrigResidualCorrection.correctionAlgoConfig.dbLabel = 'cosmics'
-        ttrig_ResidCorr_db = os.path.abspath( os.path.join(result_path,
-                                              "ttrig_residuals_" + str(self.options.run) + ".db"))
+        ttrig_ResidCorr_db = os.path.abspath( os.path.join(self.result_path,
+                                              "ttrig_residuals_" + str(tag) + ".db"))
         self.process.PoolDBOutputService.connect = 'sqlite_file:%s' % ttrig_ResidCorr_db
-        rootfile_path = os.path.abspath( os.path.join(result_path, self.output_file))
+        rootfile_path = os.path.abspath( os.path.join(self.result_path, self.output_file))
+        merged_file = os.path.join(self.result_path, self.output_file)
         self.process.dtTTrigResidualCorrection.correctionAlgoConfig.residualsRootFile = merged_file
 
         self.write_pset_file()
 
+    def correction(self):
+        """ Wrapper function as there is no difference compared to write"""
+        self.write()
+
+    def prepare_residuals_all(self):
+        # individual prepare functions for all tasks will be called in
+        # main implementation of all
+        self.all_commands=["submit", "check","correction"]
+
+
+    ####################################################################
+    #                   prepare functions for validation               #
+    ####################################################################
+
+    def prepare_validation_submit(self):
+        self.pset_name = 'dtCalibValidation_cfg.py'
+        self.pset_template = 'CalibMuon.DTCalibration.dtCalibValidation_cfg'
+        if self.options.datasettype == "Cosmics":
+            self.pset_template = 'CalibMuon.DTCalibration.dtCalibValidation_cosmics_cfg'
+        self.process = tools.loadCmsProcess(self.pset_template)
+        self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
+        self.prepare_common_submit()
+        self.options.input_db = os.path.abspath(self.options.input_db)
+
+
+    def prepare_validation_check(self):
+        self.load_options_command("submit")
+
+    def prepare_validation_summary(self):
+        self.pset_name = 'dtTTrigValidSummary_cfg.py'
+        self.pset_template = 'CalibMuon.DTCalibration.dtTTrigValidSummary_cfg'
+
+    def prepare_validation_all(self):
+        # individual prepare functions for all tasks will be called in
+        # main implementation of all
+        self.all_commands=["submit", "check","summary"]
+
+    ####################################################################
+    #                           CLI creation                           #
+    ####################################################################
     @classmethod
     def add_parser_options(cls, subparser_container):
         ttrig_parser = subparser_container.add_parser( "ttrig",
@@ -204,13 +188,10 @@ class DTttrigWorkflow( DTWorkflow ):
             help="Possible workflow modes",)
         ## Add all workflow modes for ttrig
         ttrig_timeboxes_subparser = ttrig_subparsers.add_parser( "timeboxes",
-            #parents=[mutual_parent_parser, common_parent_parser],
             help = "" )
         ttrig_residuals_subparser = ttrig_subparsers.add_parser( "residuals",
-            #parents=[mutual_parent_parser, common_parent_parser],
             help = "" )
         ttrig_validation_subparser = ttrig_subparsers.add_parser( "validation",
-            #parents=[mutual_parent_parser, common_parent_parser],
             help = "" )
 
         ################################################################
@@ -278,3 +259,54 @@ class DTttrigWorkflow( DTWorkflow ):
         ttrig_residuals_correct_parser.add_argument("--globaltag",
             help="Alternative globalTag. Otherwise the gt for sunmission is used")
 
+        ttrig_residuals_all_parser = ttrig_residuals_subparsers.add_parser(
+            "all",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                    super(DTttrigWorkflow,cls).get_submission_options_parser(),
+                    super(DTttrigWorkflow,cls).get_check_options_parser(),
+                    super(DTttrigWorkflow,cls).get_write_options_parser(),
+                    super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
+                    super(DTttrigWorkflow,cls).get_input_db_options_parser()],
+            help = "Perform all steps: submit, check, correct")
+
+        ################################################################
+        #        Sub parser options for workflow mode validation       #
+        ################################################################
+        ttrig_validation_subparsers = ttrig_validation_subparser.add_subparsers( dest="command",
+            help="Possible commands for residuals")
+
+        ttrig_validation_submit_parser = ttrig_validation_subparsers.add_parser(
+            "submit",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                    super(DTttrigWorkflow,cls).get_submission_options_parser(),
+                    super(DTttrigWorkflow,cls).get_check_options_parser(),
+                    super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
+                    super(DTttrigWorkflow,cls).get_input_db_options_parser()],
+            help = "Submit job to the GRID via crab3")
+        ttrig_validation_submit_parser.add_argument("--input-db", required=True,
+            help="Input database for validation. Expects path to timeboxes or residual db." )
+
+
+        ttrig_validation_check_parser = ttrig_validation_subparsers.add_parser(
+            "check",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                    super(DTttrigWorkflow,cls).get_check_options_parser(),],
+            help = "Check status of submitted jobs")
+
+        ttrig_validation_summary_parser = ttrig_validation_subparsers.add_parser(
+            "summary",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                    super(DTttrigWorkflow,cls).get_write_options_parser()],
+            help = "Create summary for validation")
+
+        ttrig_validation_all_parser = ttrig_validation_subparsers.add_parser(
+            "all",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                    super(DTttrigWorkflow,cls).get_submission_options_parser(),
+                    super(DTttrigWorkflow,cls).get_check_options_parser(),
+                    super(DTttrigWorkflow,cls).get_write_options_parser(),
+                    super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
+                    super(DTttrigWorkflow,cls).get_input_db_options_parser()],
+            help = "Perform all steps: submit, check, summary")
+        ttrig_validation_all_parser.add_argument("--input-db", required=True,
+            help="Input database for validation. Expects path to timeboxes or residual db." )

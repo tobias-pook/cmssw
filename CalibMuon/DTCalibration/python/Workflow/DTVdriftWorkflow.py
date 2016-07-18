@@ -14,9 +14,10 @@ class DTvdriftWorkflow( DTWorkflow ):
         super( DTvdriftWorkflow, self ).__init__( options )
 
         self.outpath_command_tag = "VdriftCalibration"
-        self.outpath_workflow_mode_tag = ""
         output_file_dict ={ "segment" : "DTVDriftHistos.root",
                             }
+        self.outpath_workflow_mode_dict = { "segment" : "Segments"
+                                            }
         self.output_file = output_file_dict[self.options.workflow_mode]
         self.output_files = [self.output_file]
 
@@ -36,66 +37,63 @@ class DTvdriftWorkflow( DTWorkflow ):
         # dump used options
 
     def prepare_segment_submit(self):
-        self.outpath_workflow_mode_tag = "Segments"
         self.pset_name = 'dtVDriftSegmentCalibration_cfg.py'
-        self.pset_template = 'CalibMuon.DTCalibration.dtResidualCalibration_cfg'
+        self.pset_template = 'CalibMuon.DTCalibration.dtVDriftSegmentCalibration_cfg'
         if self.options.datasettype == "Cosmics":
             self.pset_template = 'CalibMuon.DTCalibration.dtVDriftSegmentCalibration_cosmics_cfg'
 
-        self.prepare_common_submit()
+        self.process = tools.loadCmsProcess(self.pset_template)
+        self.process.GlobalTag.globaltag = self.options.globaltag
+        self.process.dtVDriftSegmentCalibration.rootFileName = self.output_file
 
+        if self.options.inputCalibDB:
+            err = "Option inputCalibDB not available for segment."
+            err += "Maybe you want to use option inputTtrigDB"
+            raise ValueError(err)
+        self.prepare_common_submit()
         if self.options.inputTtrigDB:
             label = ''
             if self.options.datasettype == "Cosmics":
                 label = 'cosmics'
-            connect_path = 'sqlite_file:%s' % os.path.basename(self.config.inputTTrigDB)
+            connect = os.path.abspath(self.options.inputTtrigDB)
             self.addPoolDBESSource( process = self.process,
                                     moduleName = 'tTrigDB',
                                     record = 'DTTtrigRcd',
                                     tag = 'ttrig',
-                                    label = label,
-                                    connect = connect_path)
-
+                                    connect = str("sqlite_file:%s" % connect),
+                                    label = label
+                                    )
+            self.input_files.append( os.path.abspath(self.options.inputTtrigDB) )
         self.write_pset_file()
 
     def prepare_segment_check(self):
-        self.outpath_workflow_mode_tag = "Segments"
         self.load_options_command("submit")
 
     def prepare_segment_write(self):
         self.pset_name = 'dtVDriftSegmentWriter_cfg.py'
-        self.pset_template = 'dtVDriftSegmentWriter_cfg.py'
-        self.outpath_workflow_mode_tag = "Segments"
-        self.load_options_command("submit")
-        crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath)
-        output_path = os.path.join( self.local_path, "unmerged_results" )
-        result_path = os.path.abspath(os.path.join(self.local_path,"results"))
-        merged_file = os.path.join(result_path, self.output_file)
-        if not self.options.skip_stageout or self.files_reveived:
-            self.get_output_files(crabtask, output_path)
-            log.info("Received files from storage element")
-            log.info("Using hadd to merge output files")
-            if not os.path.exists(result_path):
-                os.makedirs(result_path)
-        returncode = tools.haddLocal(output_path, merged_file)
-        if returncode != 0:
-            raise RuntimeError("Failed to merge files with hadd")
+        self.pset_template = 'CalibMuon.DTCalibration.dtVDriftSegmentWriter_cfg'
+        tag = self.prepare_common_write()
+        merged_file = os.path.join(self.result_path, self.output_file)
         self.process = tools.loadCmsProcess(self.pset_template)
+
         if self.options.inputVDriftDB:
             add_local_vdrift_db(self)
-        vdrift_db = "vDrift_segment"+ crabtask.crabConfig.Data.outputDatasetTag + ".db"
-        vdrift_db = os.path.join(result_path, ttrig_uncorrected)
-        self.process.dtVDriftSegmentWriter.rootFileName = "file:///" + merged_file
+        vdrift_db = "vDrift_segment"+ tag + ".db"
+        vdrift_db = os.path.join(self.result_path, vdrift_db)
+        self.process.dtVDriftSegmentWriter.vDriftAlgoConfig.rootFileName = "file:///" + merged_file
         self.process.PoolDBOutputService.connect = 'sqlite_file:%s' % vdrift_db
+        self.process.source.firstRun = cms.untracked.uint32(self.options.run)
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.write_pset_file()
 
     def prepare_segment_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.outpath_workflow_mode_tag = "Segments"
         self.all_commands=["submit", "check","write"]
 
+    ####################################################################
+    #                           CLI creation                           #
+    ####################################################################
     @classmethod
     def add_parser_options(cls, subparser_container):
         vdrift_parser = subparser_container.add_parser( "vdrift",
@@ -129,7 +127,7 @@ class DTvdriftWorkflow( DTWorkflow ):
         vdrift_segment_check_parser = vdrift_segment_subparsers.add_parser(
             "check",
             parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
-                    super(DTvdriftWorkflow,cls).get_check_options_parser(),],
+                    super(DTvdriftWorkflow,cls).get_check_options_parser()],
             help = "Check status of submitted jobs")
 
         vdrift_segment_write_parser = vdrift_segment_subparsers.add_parser(
@@ -145,6 +143,7 @@ class DTvdriftWorkflow( DTWorkflow ):
                      super(DTvdriftWorkflow,cls).get_submission_options_parser(),
                      super(DTvdriftWorkflow,cls).get_check_options_parser(),
                      super(DTvdriftWorkflow,cls).get_input_db_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_local_input_db_options_parser(),
                      super(DTvdriftWorkflow,cls).get_write_options_parser()
                     ],
             help = "Perform all steps: submit, check, write in this order")
