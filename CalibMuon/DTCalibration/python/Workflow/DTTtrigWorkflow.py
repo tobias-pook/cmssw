@@ -166,6 +166,8 @@ class DTttrigWorkflow( DTWorkflow ):
         self.pset_name = 'dtTTrigValidSummary_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtTTrigValidSummary_cfg'
 
+    def summary(self):
+        pass
     def prepare_validation_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all

@@ -29,6 +29,7 @@ class DTWorkflow(object):
         self.input_files = []
         # cached member variables
         self._crab = None
+        self._cert_info = None
         self.run_all_command = False
         self.files_reveived = False
         self._user = ""
@@ -99,7 +100,7 @@ class DTWorkflow(object):
             return True
         else:
             log.error("Job submission not successful, crab state:%s" % task.state)
-            return False
+            raise RuntimeError("Job submission not successful, crab state:%s" % task.state)
 
     def check(self):
         """ Function to check status of submitted crab tasks """
@@ -273,17 +274,22 @@ class DTWorkflow(object):
         setattr(process,"es_prefer_" + moduleName,cms.ESPrefer('PoolDBESSource',
                                                                 moduleName)
                                                                 )
+    @property
+    def cert_info(self):
+        if not self._cert_info:
+            if not self.voms_proxy_time_left() > 0:
+                errmsg = "No valid proxy, please create a proxy before "
+                errmsg += "running dtCalibration or crab"
+                errmsg += " might use wrong voGroup and role"
+                raise ValueError(errmsg)
+            self._cert_info = self.crabFunctions.CertInfo()
+        return self._cert_info
 
     @property
     def crab(self):
         """ Retuns a CrabController instance from cache or creates new
            on on first call """
         if self._crab is None:
-            if not self.voms_proxy_time_left() > 0:
-                errmsg = "No valid proxy, please create a proxy before"
-                errmsg += "or crab might use wrong voGroup and role"
-                raise ValueError(errmsg)
-            self.cert_info = self.crabFunctions.CertInfo()
             if self.cert_info.voGroup:
                 self._crab = self.crabFunctions.CrabController(voGroup = self.cert_info.voGroup)
             else:
@@ -291,7 +297,9 @@ class DTWorkflow(object):
         return self._crab
 
     def voms_proxy_time_left(self):
-        process = subprocess.Popen(['voms-proxy-info', '-timeleft'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process = subprocess.Popen(['voms-proxy-info', '-timeleft'],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
         stdout = process.communicate()[0]
         if process.returncode != 0:
             return 0
