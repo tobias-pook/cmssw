@@ -149,6 +149,7 @@ class DTttrigWorkflow( DTWorkflow ):
     ####################################################################
 
     def prepare_validation_submit(self):
+        self.required_options_dict["submit"].append("input-db")
         self.pset_name = 'dtCalibValidation_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtCalibValidation_cfg'
         if self.options.datasettype == "Cosmics":
@@ -285,7 +286,7 @@ class DTttrigWorkflow( DTWorkflow ):
                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
                     super(DTttrigWorkflow,cls).get_input_db_options_parser()],
             help = "Submit job to the GRID via crab3")
-        ttrig_validation_submit_parser.add_argument("--input-db", required=True,
+        ttrig_validation_submit_parser.add_argument("--input-db",
             help="Input database for validation. Expects path to timeboxes or residual db." )
 
 
@@ -310,5 +311,5 @@ class DTttrigWorkflow( DTWorkflow ):
                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
                     super(DTttrigWorkflow,cls).get_input_db_options_parser()],
             help = "Perform all steps: submit, check, summary")
-        ttrig_validation_all_parser.add_argument("--input-db", required=True,
+        ttrig_validation_all_parser.add_argument("--input-db",
             help="Input database for validation. Expects path to timeboxes or residual db." )

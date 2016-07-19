@@ -22,6 +22,11 @@ class DTWorkflow(object):
         self.options = options
         self.digilabel = "muonDTDigis"
 
+
+        # dict to hold required variables. Can not be marked in argparse to allow
+        # loading of options from config
+        self.required_options_dict = {}
+        self.fill_required_options_dict()
         # These variables are determined in the derived classes
         self.pset_name = ""
         self.outpath_command_tag = ""
@@ -50,6 +55,20 @@ class DTWorkflow(object):
         # dump used options
         self.dump_options()
 
+        missing_options = []
+        # check if all required options exist
+        if self.options.command in self.required_options_dict:
+            for option in self.required_options_dict[self.options.command]:
+                if not (hasattr(self.options, option)
+                    and ( (getattr(self.options,option))
+                          or type(getattr(self.options,option)) == bool )):
+                    missing_options.append(option)
+                else:
+                    print "Everything fine with option %s" % option
+        if len(missing_options) > 0:
+            err = "The following CLI options are missing for command %s: " % self.options.command
+            err += " ".join(missing_options)
+            raise ValueError(err)
         try:
             run_function = getattr(self, self.options.command)
         except AttributeError:
@@ -596,6 +615,12 @@ class DTWorkflow(object):
         workflow_subparsers = parser.add_subparsers( help="workflow option help", dest="workflow" )
         return workflow_subparsers
 
+    def fill_required_options_dict(self):
+        common_required = ["run"]
+        self.required_options_dict["submit"] = common_required
+        self.required_options_dict["submit"].append("datasetpath")
+        self.required_options_dict["submit"].append("globaltag")
+
     @classmethod
     def get_common_options_parser(cls):
         """ Return a parser with common options for each workflow"""
@@ -655,11 +680,11 @@ class DTWorkflow(object):
         submission_opts_parser = argparse.ArgumentParser(add_help=False)
         submission_opts_group = submission_opts_parser.add_argument_group(
             description ="Options for Job submission")
-        submission_opts_group.add_argument("--datasetpath", required=True,
+        submission_opts_group.add_argument("--datasetpath",
             help="dataset name to process")
         submission_opts_group.add_argument("--run-on-RAW", action = "store_true",
             help="Flag if run on RAW dataset")
-        submission_opts_group.add_argument("--globaltag", required = True,
+        submission_opts_group.add_argument("--globaltag",
         help="global tag identifier (with the '::All' string, if necessary)")
         submission_opts_group.add_argument("--runselection", default = [], nargs="+",
             help="run list or range")
