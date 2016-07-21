@@ -495,7 +495,7 @@ class DTWorkflow(object):
                                                 'DTCalibration/',
                                                 self.outpath_command_tag,
                                                 self.outpath_workflow_mode_tag),
-                "outputDatasetTag" :   'Run' + str(self.options.run) + '_v' + str(self.options.trial)
+                "outputDatasetTag" : self.tag
                     }
         else:
             return os.path.join( 'DTCalibration/',
@@ -510,6 +510,10 @@ class DTWorkflow(object):
         if not self.options.workflow_mode in self.outpath_workflow_mode_dict:
             raise NotImplementedError("%s missing in outpath_workflow_mode_dict" % self.options.workflow_mode)
         return self.outpath_workflow_mode_dict[self.options.workflow_mode]
+
+    @property
+    def tag(self):
+        return 'Run' + str(self.options.run) + '_v' + str(self.options.trial)
 
     @property
     def user(self):
@@ -539,14 +543,14 @@ class DTWorkflow(object):
                                     self.options.label,
                                     self.options.trial)
         if self.outpath_workflow_mode_tag:
-            return os.path.join( self.options.working_dir,
-                                    prefix,
-                                 self.outpath_workflow_mode_tag,
-                                  )
-        else:
-            return os.path.join( self.options.working_dir,
+            path = os.path.join( self.options.working_dir,
                                  prefix,
-                                 self.outpath_command_tag )
+                                 self.outpath_workflow_mode_tag)
+        else:
+            path =  os.path.join( self.options.working_dir,
+                                  prefix,
+                                  self.outpath_command_tag )
+        return path
 
     @property
     def result_path(self):
@@ -605,6 +609,10 @@ class DTWorkflow(object):
         """Load options for previous command in workflow """
         #~ if not self.run_all_command:s
         if not self.options.config_path:
+            if not self.options.run:
+                raise RuntimeError("Option run is required if no config path specified")
+            if not os.path.exists(self.local_path):
+                raise IOError("Local path %s does not exist" % self.local_path)
             self.options.config_path = os.path.join(self.local_path,
                                                     self.get_config_name(command))
         self.load_options( self.options.config_path )
@@ -620,6 +628,9 @@ class DTWorkflow(object):
         self.required_options_dict["submit"] = common_required
         self.required_options_dict["submit"].append("datasetpath")
         self.required_options_dict["submit"].append("globaltag")
+
+        self.required_options_dict["correction"] = common_required
+        self.required_options_dict["correction"].append("globaltag")
 
     @classmethod
     def get_common_options_parser(cls):
@@ -664,13 +675,13 @@ class DTWorkflow(object):
     def get_local_input_db_options_parser(cls):
         """ Return a parser object with options relevant for input databases"""
         db_opts_parser = argparse.ArgumentParser(add_help=False)
-        dp_opts_group = db_opts_parser.add_argument_group(
+        db_opts_group = db_opts_parser.add_argument_group(
             description ="Options for local input databases")
-        db_opts_parser.add_argument("--inputVDriftDB",
+        db_opts_group.add_argument("--inputVDriftDB",
             help="Local alternative VDrift database")
-        db_opts_parser.add_argument("--inputCalibDB",
+        db_opts_group.add_argument("--inputCalibDB",
             help="Local alternative Ttrig database")
-        db_opts_parser.add_argument("--inputT0DB",
+        db_opts_group.add_argument("--inputT0DB",
             help="Local alternative T0 database")
         return db_opts_parser
 

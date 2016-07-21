@@ -66,22 +66,41 @@ class DTttrigWorkflow( DTWorkflow ):
         self.load_options_command("submit")
 
     def prepare_timeboxes_write(self):
-        tag = self.prepare_common_write()
+        self.prepare_common_write()
         merged_file = os.path.join(self.result_path, self.output_file)
-        ttrig_uncorrected = "trig_uncorrected_"+ tag + ".db"
-        ttrig_uncorrected = os.path.join(self.result_path, ttrig_uncorrected)
+        ttrig_uncorrected_db = "ttrig_uncorrected_"+ self.tag + ".db"
+        ttrig_uncorrected_db = os.path.join(self.result_path,
+                                                 self.ttrig_uncorrected_db)
         self.pset_name = 'dtTTrigWriter_cfg.py'
         self.pset_template = "CalibMuon.DTCalibration.dtTTrigWriter_cfg"
         self.process = tools.loadCmsProcess(self.pset_template)
         self.process.dtTTrigWriter.rootFileName = "file:///" + merged_file
-        self.process.PoolDBOutputService.connect = 'sqlite_file:%s' % ttrig_uncorrected
+        self.process.PoolDBOutputService.connect = 'sqlite_file:%s' % ttrig_uncorrected_db
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
+        self.write_pset_file()
+
+    def prepare_timeboxes_correction(self):
+        self.load_options_command("submit")
+        self.pset_name = 'dtTTrigCorrection_cfg.py'
+        self.pset_template = "CalibMuon.DTCalibration.dtTTrigCorrection_cfg"
+        ttrig_timeboxes_db = "ttrig_timeboxes_"+ self.tag + ".db"
+        self.process = tools.loadCmsProcess(self.pset_template)
+        self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
+        self.process.source.firstRun = self.options.run
+
+        if not self.options.inputCalibDB:
+            self.options.inputCalibDB = "ttrig_uncorrected_"+ self.tag + ".db"
+        if self.options.inputVDriftDB:
+            log.warning("Options inputVDriftDB has no effect for timeboxes correction")
+        if self.options.inputT0DB:
+            log.warning("Options inputT0DB has no effect for timeboxes correction")
+        self.add_local_calib_db()
         self.write_pset_file()
 
     def prepare_timeboxes_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.all_commands=["submit", "check","write"]
+        self.all_commands=["submit", "check", "write", "correction"]
 
     ####################################################################
     #                      prepare functions for residuals             #
@@ -221,6 +240,13 @@ class DTttrigWorkflow( DTWorkflow ):
                      super(DTttrigWorkflow,cls).get_write_options_parser()
                     ],
             help = "Write result from root output to text file")
+
+        ttrig_timeboxes_write_parser = ttrig_timeboxes_subparsers.add_parser(
+            "correction",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser()
+                    ],
+            help = "Perform correction on uncorrected ttrig database")
 
         ttrig_timeboxes_all_parser = ttrig_timeboxes_subparsers.add_parser(
             "all",
