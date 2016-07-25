@@ -63,8 +63,6 @@ class DTWorkflow(object):
                     and ( (getattr(self.options,option))
                           or type(getattr(self.options,option)) == bool )):
                     missing_options.append(option)
-                else:
-                    print "Everything fine with option %s" % option
         if len(missing_options) > 0:
             err = "The following CLI options are missing for command %s: " % self.options.command
             err += " ".join(missing_options)
@@ -419,41 +417,11 @@ class DTWorkflow(object):
         log.info(lfn_files)
         return lfn_files, pfn_path, pfn_base_path
 
-    def get_output_files(self, crabtask, output_path, extension=".root"):
-        lfn_files, pfn_path, pfn_base_path = self.list_remote_files(crabtask, extension)
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
-        abs_resultpath = os.path.abspath(os.path.join(output_path) )
-        if not os.path.exists( abs_resultpath ):
-            os.makedirs(abs_resultpath)
-        existing_files = glob.glob( abs_resultpath + "/*"+ extension)
-        log.info("Copying output files to local disk")
-        if not lfn_files:
-            log.error("Found no files in remote storage element, exiting")
-            sys.exit(1)
-        for lfn_path in lfn_files:
-            if not crabtask.crabConfig.Data.outputDatasetTag in lfn_path:
-                continue
-            for existing_file in existing_files:
-                if os.path.basename(lfn_path) in existing_file:
-                    continue
-            local_file_path = os.path.join( abs_resultpath, os.path.basename(lfn_path) )
-            remote_file_path = pfn_base_path + lfn_path
-            tries = 0
-            while tries < 3:
-                command = [ "lcg-cp",
-                            remote_file_path,
-                            "file:///" + local_file_path ]
-                log.info(" ".join(command))
-                process = subprocess.Popen(command, stdout=subprocess.PIPE)
-                process.communicate()
-                if process.returncode==0:
-                    log.info(lfn_path)
-                    break
-                tries +=1
-            if tries == 3:
-                raise RuntimeError("Unable to copy file to local disk: %s" % filename)
-        self.files_reveived = True
+    def get_output_files(self, crabtask, output_path):
+        self.crab.callCrabCommand( ["getoutput",
+                                    "--outputpath",
+                                    output_path,
+                                    crabtask.crabFolder ] )
 
     def runCMSSWtask(self):
         process = subprocess.Popen( "cmsRun %s" % self.pset_path,
