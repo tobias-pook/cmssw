@@ -70,7 +70,7 @@ class DTttrigWorkflow( DTWorkflow ):
         merged_file = os.path.join(self.result_path, self.output_file)
         ttrig_uncorrected_db = "ttrig_uncorrected_"+ self.tag + ".db"
         ttrig_uncorrected_db = os.path.join(self.result_path,
-                                                 self.ttrig_uncorrected_db)
+                                            ttrig_uncorrected_db)
         self.pset_name = 'dtTTrigWriter_cfg.py'
         self.pset_template = "CalibMuon.DTCalibration.dtTTrigWriter_cfg"
         self.process = tools.loadCmsProcess(self.pset_template)
