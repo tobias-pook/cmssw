@@ -208,7 +208,7 @@ class DTWorkflow(object):
         label = ''
         if self.options.datasettype == "Cosmics":
             label = 'cosmics'
-        connect = os.path.abspath(self.options.inputCalibDB)
+        connect = os.path.basename(self.options.inputCalibDB)
         self.addPoolDBESSource( process = self.process,
                                 moduleName = 'calibDB',
                                 record = 'DTTtrigRcd',
