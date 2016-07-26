@@ -89,6 +89,7 @@ class DTttrigWorkflow( DTWorkflow ):
         self.process = tools.loadCmsProcess(self.pset_template)
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.process.source.firstRun = self.options.run
+        self.process.source.PoolDBOutputService.connect = 'sqlite_file:%s' % ttrig_timeboxes_db
 
         if not self.options.inputCalibDB:
             self.options.inputCalibDB = os.path.join(self.result_path,
