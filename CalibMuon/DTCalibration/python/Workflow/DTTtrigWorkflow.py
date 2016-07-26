@@ -84,12 +84,15 @@ class DTttrigWorkflow( DTWorkflow ):
         self.pset_name = 'dtTTrigCorrection_cfg.py'
         self.pset_template = "CalibMuon.DTCalibration.dtTTrigCorrection_cfg"
         ttrig_timeboxes_db = "ttrig_timeboxes_"+ self.tag + ".db"
+        ttrig_timeboxes_db = os.path.join(self.result_path,
+                                    ttrig_timeboxes_db)
         self.process = tools.loadCmsProcess(self.pset_template)
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.process.source.firstRun = self.options.run
 
         if not self.options.inputCalibDB:
-            self.options.inputCalibDB = "ttrig_uncorrected_"+ self.tag + ".db"
+            self.options.inputCalibDB = os.path.join(self.result_path,
+                                            "ttrig_uncorrected_"+ self.tag + ".db")
         if self.options.inputVDriftDB:
             log.warning("Options inputVDriftDB has no effect for timeboxes correction")
         if self.options.inputT0DB:
