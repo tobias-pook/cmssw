@@ -186,29 +186,47 @@ class DTWorkflow(object):
             getattr(self.process, self.digilabel).inputLabel = 'rawDataCollector'
             tools.prependPaths(self.process,self.digilabel)
 
-    def add_local_t0_db(self):
-        connect_path ='sqlite_file:%s' % os.path.basename(self.options.inputT0DB)
+    def add_local_t0_db(self, local=False):
+        """ Add a local t0 database as input. Use the option local is used
+            if the pset is processed locally and not with crab.
+        """
+        if local:
+            connect = os.path.abspath(self.options.inputT0DB)
+        else:
+            connect = os.path.basename(self.options.inputT0DB)
         self.addPoolDBESSource( process = self.process,
                                 moduleName = 't0DB',
                                 record = 'DTT0Rcd',
                                 tag = 't0',
-                                connect = connect_path)
+                                connect =  'sqlite_file:%s' % connect)
         self.input_files.append(os.path.abspath(self.options.inputT0DB))
 
-    def add_local_vdrift_db(self):
-        connect_path = 'sqlite_file:%s' % os.path.basename(self.config.inputVDriftDB)
+    def add_local_vdrift_db(self, local=False):
+        """ Add a local vdrift database as input. Use the option local is used
+            if the pset is processed locally and not with crab.
+         """
+        if local:
+            connect = os.path.abspath(self.config.inputVDriftDB)
+        else:
+            connect = os.path.basename(self.config.inputVDriftDB)
         self.addPoolDBESSource( process = self.process,
                                 moduleName = 'vDriftDB',
                                 record = 'DTMtimeRcd',
                                 tag = 'vDrift',
-                                connect = connect_path)
+                                connect = 'sqlite_file:%s' % connect)
         self.input_files.append( os.path.abspath(self.options.inputVDriftDB) )
 
-    def add_local_calib_db(self):
+    def add_local_calib_db(self, local=False):
+        """ Add a local calib database as input. Use the option local is used
+            if the pset is processed locally and not with crab.
+         """
         label = ''
         if self.options.datasettype == "Cosmics":
             label = 'cosmics'
-        connect = os.path.basename(self.options.inputCalibDB)
+        if local:
+            connect = os.path.abspath(self.options.inputCalibDB)
+        else:
+            connect = os.path.basename(self.options.inputCalibDB)
         self.addPoolDBESSource( process = self.process,
                                 moduleName = 'calibDB',
                                 record = 'DTTtrigRcd',

@@ -98,7 +98,7 @@ class DTttrigWorkflow( DTWorkflow ):
             log.warning("Options inputVDriftDB has no effect for timeboxes correction")
         if self.options.inputT0DB:
             log.warning("Options inputT0DB has no effect for timeboxes correction")
-        self.add_local_calib_db()
+        self.add_local_calib_db(local=True)
         self.write_pset_file()
 
     def prepare_timeboxes_all(self):
@@ -139,11 +139,11 @@ class DTttrigWorkflow( DTWorkflow ):
             log.warning("Option inputT0DB not supported for residual corrections")
 
         if self.options.inputDBTag:
-            self.add_local_custom_db()
+            self.add_local_custom_db(local=True)
         if self.options.inputVDriftDB:
-            self.add_local_vdrift_db()
+            self.add_local_vdrift_db(local=True)
         if self.options.inputCalibDB:
-            self.add_local_calib_db()
+            self.add_local_calib_db(local=True)
         # Change DB label if running on Cosmics
         if self.options.datasettype == "Cosmics":
             self.process.dtTTrigResidualCorrection.dbLabel = 'cosmics'
