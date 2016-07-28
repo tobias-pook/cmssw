@@ -55,7 +55,7 @@ class DTvdriftWorkflow( DTWorkflow ):
             label = ''
             if self.options.datasettype == "Cosmics":
                 label = 'cosmics'
-            connect = os.path.abspath(self.options.inputTtrigDB)
+            connect = os.path.basename(self.options.inputTtrigDB)
             self.addPoolDBESSource( process = self.process,
                                     moduleName = 'tTrigDB',
                                     record = 'DTTtrigRcd',
