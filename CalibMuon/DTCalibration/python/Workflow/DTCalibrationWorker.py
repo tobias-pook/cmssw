@@ -36,7 +36,7 @@ class DTCalibrationWorker(object):
     def setup_crab_env(self):
         # following
         #http://.com/questions/3503719/emulating-bash-source-in-python
-        command = ['bash', '-c', 'unset module;source /cvmfs/cms.cern.ch/crab3/crab_light.sh && env']
+        command = ['bash', '-c', 'unset module;source /cvmfs/cms.cern.ch/crab3/crab.sh && env']
         proc = subprocess.Popen(command, stdout = subprocess.PIPE)
 
         print 'setting up crab'
