@@ -147,3 +147,5 @@ class DTvdriftWorkflow( DTWorkflow ):
                      super(DTvdriftWorkflow,cls).get_write_options_parser()
                     ],
             help = "Perform all steps: submit, check, write in this order")
+        vdrift_segment_all_parser.add_argument("--inputTtrigDB",
+            help="Local alternative calib ttrig db")
