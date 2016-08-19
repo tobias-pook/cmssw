@@ -166,11 +166,13 @@ class DTWorkflow(object):
         return False
 
     def write(self):
-        if self.options.no_exec:
-            return True
-        returncode = self.runCMSSWtask()
-        if returncode != 0:
-            raise RuntimeError("Failed to use cmsRun for pset %s" % self.pset_name)
+        self.runCMSSWtask()
+
+    def dump(self):
+        self.runCMSSWtask()
+
+    def correction(self):
+        self.runCMSSWtask()
 
     def add_preselection(self):
         """ Add preselection to the process object stored in workflow_object"""
@@ -281,6 +283,19 @@ class DTWorkflow(object):
             if returncode != 0:
                 raise RuntimeError("Failed to merge files with hadd")
         return crabtask.crabConfig.Data.outputDatasetTag
+
+    def prepare_common_dump(self, db_path):
+        self.process = tools.loadCmsProcess(self.pset_template)
+        self.process.calibDB.connect = 'sqlite_file:%s' % db_path
+        try:
+            path = self.result_path
+        except:
+            path = os.getcwd()
+        print "path", path
+        out_path = os.path.abspath(os.path.join(path,
+                                                os.path.splitext(db_path)[0] + ".txt"))
+
+        self.process.dumpToFile.outputFileName = out_path
 
     def addPoolDBESSource( self,
                            process,
@@ -441,13 +456,19 @@ class DTWorkflow(object):
                                     output_path,
                                     crabtask.crabFolder ] )
 
-    def runCMSSWtask(self):
+    def runCMSSWtask(self, pset_path=""):
+        """ Run a cmsRun job locally. The member variable self.pset_path is used
+            if pset_path argument is not given"""
+        if self.options.no_exec:
+            return 0
         process = subprocess.Popen( "cmsRun %s" % self.pset_path,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT,
                             shell = True)
         stdout = process.communicate()[0]
-        print stdout
+        log.debug(stdout)
+        if process.returncode != 0:
+            raise RuntimeError("Failed to use cmsRun for pset %s" % self.pset_name)
         return process.returncode
 
     @property

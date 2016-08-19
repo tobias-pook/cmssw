@@ -289,7 +289,7 @@ class DTttrigWorkflow( DTWorkflow ):
                     ],
             help = "Write result from root output to text file")
 
-        ttrig_timeboxes_write_parser = ttrig_timeboxes_subparsers.add_parser(
+        ttrig_timeboxes_correction_parser = ttrig_timeboxes_subparsers.add_parser(
             "correction",
             parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
                      super(DTttrigWorkflow,cls).get_local_input_db_options_parser()
@@ -308,6 +308,7 @@ class DTttrigWorkflow( DTWorkflow ):
                      super(DTttrigWorkflow,cls).get_submission_options_parser(),
                      super(DTttrigWorkflow,cls).get_check_options_parser(),
                      super(DTttrigWorkflow,cls).get_input_db_options_parser(),
+                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
                      super(DTttrigWorkflow,cls).get_write_options_parser(),
                      super(DTttrigWorkflow,cls).get_dump_options_parser()
                     ],
