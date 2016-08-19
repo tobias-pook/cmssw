@@ -25,13 +25,22 @@ class DTttrigWorkflow( DTWorkflow ):
                                             "residuals" : "Residuals",
                                             "validation" : "TtrigValidation"
                                            }
+       # Dict to map workflow modes to database file name
+        self.output_db_dict = { "timeboxes" : {
+                                          "write": "ttrig_timeboxes_"
+                                                    + self.tag
+                                                    + ".db",
+                                          "correction": "ttrig_timeboxes_uncorrected_"
+                                                        + self.tag
+                                                        + ".db"
+                                         },
+                           "residuals" : "ttrig_residuals_" + self.tag + ".db"}
         self.output_file = output_file_dict[self.options.workflow_mode]
         self.output_files = [self.output_file]
 
     def prepare_workflow(self):
         """ Generalized function to prepare workflow dependent on workflow mode"""
         function_name = "prepare_" + self.options.workflow_mode + "_" + self.options.command
-
         try:
             fill_function = getattr(self, function_name)
         except AttributeError:
@@ -41,8 +50,12 @@ class DTttrigWorkflow( DTWorkflow ):
         log.debug("Preparing workflow with function %s" % function_name)
         # call chosen function
         fill_function()
-        # dump used options
 
+    def get_output_db(self, workflow_mode, command):
+        output_db_file = self.output_db_dict[workflow_mode]
+        if type(output_db_file) == dict:
+            return output_db_file[command]
+        return output_db_file
     ####################################################################
     #                     Prepare functions for timeboxes              #
     ####################################################################
@@ -66,11 +79,13 @@ class DTttrigWorkflow( DTWorkflow ):
         self.load_options_command("submit")
 
     def prepare_timeboxes_write(self):
+        self.output_db_file = self.output_db_dict[self.options.workflow_mode]
+        if type(self.output_db_dict[self.options.workflow_mode]) == dict:
+            self.output_db_file = self.output_db_file[self.options.command]
         self.prepare_common_write()
         merged_file = os.path.join(self.result_path, self.output_file)
-        ttrig_uncorrected_db = "ttrig_uncorrected_"+ self.tag + ".db"
         ttrig_uncorrected_db = os.path.join(self.result_path,
-                                            ttrig_uncorrected_db)
+                                            self.get_output_db("timeboxes", "write"))
         self.pset_name = 'dtTTrigWriter_cfg.py'
         self.pset_template = "CalibMuon.DTCalibration.dtTTrigWriter_cfg"
         self.process = tools.loadCmsProcess(self.pset_template)
@@ -85,7 +100,7 @@ class DTttrigWorkflow( DTWorkflow ):
         self.pset_template = "CalibMuon.DTCalibration.dtTTrigCorrection_cfg"
         ttrig_timeboxes_db = "ttrig_timeboxes_"+ self.tag + ".db"
         ttrig_timeboxes_db = os.path.join(self.result_path,
-                                    ttrig_timeboxes_db)
+                                          self.get_output_db("timeboxes", "correction"))
         self.process = tools.loadCmsProcess(self.pset_template)
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.process.source.firstRun = self.options.run
@@ -101,10 +116,27 @@ class DTttrigWorkflow( DTWorkflow ):
         self.add_local_calib_db(local=True)
         self.write_pset_file()
 
+    def prepare_timeboxes_dump(self):
+        self.pset_name = 'dumpDBToFile_ResidCorr_cfg.py'
+        self.pset_template = 'CalibMuon.DTCalibration.dumpDBToFile_ttrig_cfg'
+        if self.options.input_dumpDB:
+            try:
+                test = self.result_path
+                self.load_options_command("correction")
+            except:
+                pass
+            dbpath = os.path.abspath(self.options.input_dumpDB)
+        else:
+            dbpath = os.path.abspath( os.path.join(self.result_path,
+                                                   self.get_output_db("timeboxes",
+                                                                      "correction")))
+        self.prepare_common_dump(dbpath)
+        self.write_pset_file()
+
     def prepare_timeboxes_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.all_commands=["submit", "check", "write", "correction"]
+        self.all_commands=["submit", "check", "write", "correction", "dump"]
 
     ####################################################################
     #                      prepare functions for residuals             #
@@ -149,23 +181,34 @@ class DTttrigWorkflow( DTWorkflow ):
             self.process.dtTTrigResidualCorrection.dbLabel = 'cosmics'
             self.process.dtTTrigResidualCorrection.correctionAlgoConfig.dbLabel = 'cosmics'
         ttrig_ResidCorr_db = os.path.abspath( os.path.join(self.result_path,
-                                              "ttrig_residuals_" + str(tag) + ".db"))
+                                              self.get_output_db("residuals", "write")))
         self.process.PoolDBOutputService.connect = 'sqlite_file:%s' % ttrig_ResidCorr_db
         rootfile_path = os.path.abspath( os.path.join(self.result_path, self.output_file))
         merged_file = os.path.join(self.result_path, self.output_file)
         self.process.dtTTrigResidualCorrection.correctionAlgoConfig.residualsRootFile = merged_file
-
         self.write_pset_file()
 
-    def correction(self):
-        """ Wrapper function as there is no difference compared to write"""
-        self.write()
+    def prepare_residuals_dump(self):
+        self.pset_name = 'dumpDBToFile_ResidCorr_cfg.py'
+        self.pset_template = 'CalibMuon.DTCalibration.dumpDBToFile_ttrig_cfg'
+        if self.options.input_dumpDB:
+            dbpath = os.path.abspath(self.options.input_dumpDB)
+        else:
+            try:
+                test = self.result_path
+                self.load_options_command("write")
+            except:
+                pass
+            dbpath = os.path.abspath( os.path.join(self.result_path,
+                                                   self.get_output_db("residuals",
+                                                                      "write")))
+        self.prepare_common_dump(dbpath)
+        self.write_pset_file()
 
     def prepare_residuals_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.all_commands=["submit", "check","correction"]
-
+        self.all_commands=["submit", "check", "correction", "dump"]
 
     ####################################################################
     #                   prepare functions for validation               #
@@ -192,6 +235,7 @@ class DTttrigWorkflow( DTWorkflow ):
 
     def summary(self):
         pass
+
     def prepare_validation_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
@@ -252,15 +296,23 @@ class DTttrigWorkflow( DTWorkflow ):
                     ],
             help = "Perform correction on uncorrected ttrig database")
 
+        ttrig_timeboxes_dump_parser = ttrig_timeboxes_subparsers.add_parser(
+            "dump",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                     super(DTttrigWorkflow,cls).get_dump_options_parser()],
+            help = "Dump database to text file")
+
         ttrig_timeboxes_all_parser = ttrig_timeboxes_subparsers.add_parser(
             "all",
             parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
                      super(DTttrigWorkflow,cls).get_submission_options_parser(),
                      super(DTttrigWorkflow,cls).get_check_options_parser(),
                      super(DTttrigWorkflow,cls).get_input_db_options_parser(),
-                     super(DTttrigWorkflow,cls).get_write_options_parser()
+                     super(DTttrigWorkflow,cls).get_write_options_parser(),
+                     super(DTttrigWorkflow,cls).get_dump_options_parser()
                     ],
-            help = "Perform all steps: submit, check, write in this order")
+            help = "Perform all steps: submit, check, write, correction,"\
+                   "dump in this order")
 
         ################################################################
         #        Sub parser options for workflow mode residuals        #
@@ -292,6 +344,12 @@ class DTttrigWorkflow( DTWorkflow ):
         ttrig_residuals_correct_parser.add_argument("--globaltag",
             help="Alternative globalTag. Otherwise the gt for sunmission is used")
 
+        ttrig_residuals_dump_parser = ttrig_residuals_subparsers.add_parser(
+            "dump",
+            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
+                     super(DTttrigWorkflow,cls).get_dump_options_parser()],
+            help = "Dump database to text file")
+
         ttrig_residuals_all_parser = ttrig_residuals_subparsers.add_parser(
             "all",
             parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
@@ -299,8 +357,9 @@ class DTttrigWorkflow( DTWorkflow ):
                     super(DTttrigWorkflow,cls).get_check_options_parser(),
                     super(DTttrigWorkflow,cls).get_write_options_parser(),
                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
+                    super(DTttrigWorkflow,cls).get_dump_options_parser(),
                     super(DTttrigWorkflow,cls).get_input_db_options_parser()],
-            help = "Perform all steps: submit, check, correct")
+            help = "Perform all steps: submit, check, correct, dump")
 
         ################################################################
         #        Sub parser options for workflow mode validation       #

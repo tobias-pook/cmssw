@@ -34,7 +34,6 @@ class DTvdriftWorkflow( DTWorkflow ):
         log.debug("Preparing workflow with function %s" % function_name)
         # call chosen function
         fill_function()
-        # dump used options
 
     def prepare_segment_submit(self):
         self.pset_name = 'dtVDriftSegmentCalibration_cfg.py'
@@ -86,10 +85,26 @@ class DTvdriftWorkflow( DTWorkflow ):
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.write_pset_file()
 
+    def prepare_segment_dump(self):
+        self.pset_name = 'dumpDBToFile_vdrift_cfg.py'
+        self.pset_template = 'CalibMuon.DTCalibration.dumpDBToFile_vdrift_cfg'
+        if self.options.input_dumpDB:
+            try:
+                test = self.result_path
+                self.load_options_command("write")
+            except:
+                pass
+            dbpath = os.path.abspath(self.options.input_dumpDB)
+        else:
+            dbpath = os.path.abspath( os.path.join(self.result_path,
+                                                   "vDrift_segment"+ tag + ".db"))
+        self.prepare_common_dump(dbpath)
+        self.write_pset_file()
+
     def prepare_segment_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.all_commands=["submit", "check","write"]
+        self.all_commands=["submit", "check", "write", "dump"]
 
     ####################################################################
     #                           CLI creation                           #
@@ -137,6 +152,12 @@ class DTvdriftWorkflow( DTWorkflow ):
                     ],
             help = "Write result from root output to text file")
 
+        vdrift_segment_dump_parser = vdrift_segment_subparsers.add_parser(
+            "dump",
+            parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_dump_options_parser()],
+            help = "Dump database to text file")
+
         vdrift_segment_all_parser = vdrift_segment_subparsers.add_parser(
             "all",
             parents=[super(DTvdriftWorkflow,cls).get_common_options_parser(),
@@ -144,8 +165,9 @@ class DTvdriftWorkflow( DTWorkflow ):
                      super(DTvdriftWorkflow,cls).get_check_options_parser(),
                      super(DTvdriftWorkflow,cls).get_input_db_options_parser(),
                      super(DTvdriftWorkflow,cls).get_local_input_db_options_parser(),
-                     super(DTvdriftWorkflow,cls).get_write_options_parser()
+                     super(DTvdriftWorkflow,cls).get_write_options_parser(),
+                     super(DTvdriftWorkflow,cls).get_dump_options_parser()
                     ],
-            help = "Perform all steps: submit, check, write in this order")
+            help = "Perform all steps: submit, check, write, dump in this order")
         vdrift_segment_all_parser.add_argument("--inputTtrigDB",
             help="Local alternative calib ttrig db")
