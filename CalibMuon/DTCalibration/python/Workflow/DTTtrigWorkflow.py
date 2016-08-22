@@ -27,10 +27,10 @@ class DTttrigWorkflow( DTWorkflow ):
                                            }
        # Dict to map workflow modes to database file name
         self.output_db_dict = { "timeboxes" : {
-                                          "write": "ttrig_timeboxes_"
+                                          "write": "ttrig_timeboxes_uncorrected_"
                                                     + self.tag
                                                     + ".db",
-                                          "correction": "ttrig_timeboxes_uncorrected_"
+                                          "correction": "ttrig_timeboxes_"
                                                         + self.tag
                                                         + ".db"
                                          },
@@ -108,7 +108,7 @@ class DTttrigWorkflow( DTWorkflow ):
 
         if not self.options.inputCalibDB:
             self.options.inputCalibDB = os.path.join(self.result_path,
-                                            "ttrig_uncorrected_"+ self.tag + ".db")
+                                            self.get_output_db( "timeboxes", "write" ) )
         if self.options.inputVDriftDB:
             log.warning("Options inputVDriftDB has no effect for timeboxes correction")
         if self.options.inputT0DB:
