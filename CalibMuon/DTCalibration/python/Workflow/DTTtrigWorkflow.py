@@ -215,7 +215,6 @@ class DTttrigWorkflow( DTWorkflow ):
     ####################################################################
 
     def prepare_validation_submit(self):
-        self.required_options_dict["submit"].append("input-db")
         self.pset_name = 'dtCalibValidation_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtCalibValidation_cfg'
         if self.options.datasettype == "Cosmics":
@@ -223,15 +222,27 @@ class DTttrigWorkflow( DTWorkflow ):
         self.process = tools.loadCmsProcess(self.pset_template)
         self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.prepare_common_submit()
-        self.options.input_db = os.path.abspath(self.options.input_db)
-
+        self.add_local_calib_db()
+        self.write_pset_file()
 
     def prepare_validation_check(self):
         self.load_options_command("submit")
 
-    def prepare_validation_summary(self):
-        self.pset_name = 'dtTTrigValidSummary_cfg.py'
-        self.pset_template = 'CalibMuon.DTCalibration.dtTTrigValidSummary_cfg'
+    def prepare_validation_write(self):
+        self.pset_name = 'dtDQMClient_cfg.py'
+        self.pset_template = 'CalibMuon.DTCalibration.dtDQMClient_cfg'
+        self.process = loadCmsProcess(self.pset_template)
+        self.prepare_common_write()
+        dqm_files = glob.glob(os.path.join( self.local_path,
+                                            "unmerged_results",
+                                            "dqm*.root") )
+        self.process.source.fileNames =  dqm_files
+        self.process.dqmSaver.dirName = os.path.abspath(self.result_path)
+        self.process.dqmSaver.workflow = str(str(self.options.run)
+                                         + "_" self.options.label
+                                         + "_v" + str(self.options.trial))
+        if self.process.DQMStore.collateHistograms == True: self.process.dqmSaver.forceRunNumber = self.run
+        self.write_pset_file()
 
     def summary(self):
         pass
@@ -239,7 +250,7 @@ class DTttrigWorkflow( DTWorkflow ):
     def prepare_validation_all(self):
         # individual prepare functions for all tasks will be called in
         # main implementation of all
-        self.all_commands=["submit", "check","summary"]
+        self.all_commands=["submit", "check","write"]
 
     ####################################################################
     #                           CLI creation                           #
@@ -263,7 +274,6 @@ class DTttrigWorkflow( DTWorkflow ):
             help = "" )
         ttrig_validation_subparser = ttrig_subparsers.add_parser( "validation",
             help = "" )
-
         ################################################################
         #        Sub parser options for workflow mode timeboxes        #
         ################################################################
@@ -376,8 +386,6 @@ class DTttrigWorkflow( DTWorkflow ):
                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
                     super(DTttrigWorkflow,cls).get_input_db_options_parser()],
             help = "Submit job to the GRID via crab3")
-        ttrig_validation_submit_parser.add_argument("--input-db",
-            help="Input database for validation. Expects path to timeboxes or residual db." )
 
 
         ttrig_validation_check_parser = ttrig_validation_subparsers.add_parser(
@@ -386,8 +394,8 @@ class DTttrigWorkflow( DTWorkflow ):
                     super(DTttrigWorkflow,cls).get_check_options_parser(),],
             help = "Check status of submitted jobs")
 
-        ttrig_validation_summary_parser = ttrig_validation_subparsers.add_parser(
-            "summary",
+        ttrig_validation_write_parser = ttrig_validation_subparsers.add_parser(
+            "write",
             parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
                     super(DTttrigWorkflow,cls).get_write_options_parser()],
             help = "Create summary for validation")
@@ -401,5 +409,3 @@ class DTttrigWorkflow( DTWorkflow ):
                     super(DTttrigWorkflow,cls).get_local_input_db_options_parser(),
                     super(DTttrigWorkflow,cls).get_input_db_options_parser()],
             help = "Perform all steps: submit, check, summary")
-        ttrig_validation_all_parser.add_argument("--input-db",
-            help="Input database for validation. Expects path to timeboxes or residual db." )
