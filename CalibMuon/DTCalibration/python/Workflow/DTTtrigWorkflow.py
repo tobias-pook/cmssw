@@ -1,5 +1,6 @@
 import os
 import logging
+import glob
 
 import tools
 import FWCore.ParameterSet.Config as cms
@@ -231,7 +232,7 @@ class DTttrigWorkflow( DTWorkflow ):
     def prepare_validation_write(self):
         self.pset_name = 'dtDQMClient_cfg.py'
         self.pset_template = 'CalibMuon.DTCalibration.dtDQMClient_cfg'
-        self.process = loadCmsProcess(self.pset_template)
+        self.process = tools.loadCmsProcess(self.pset_template)
         self.prepare_common_write()
         dqm_files = glob.glob(os.path.join( self.local_path,
                                             "unmerged_results",
@@ -241,7 +242,8 @@ class DTttrigWorkflow( DTWorkflow ):
         self.process.dqmSaver.workflow = str(str(self.options.run)
                                          + "_" + self.options.label
                                          + "_v" + str(self.options.trial))
-        if self.process.DQMStore.collateHistograms == True: self.process.dqmSaver.forceRunNumber = self.run
+        if self.process.DQMStore.collateHistograms == True:
+            self.process.dqmSaver.forceRunNumber = str(self.run)
         self.write_pset_file()
 
     def summary(self):
