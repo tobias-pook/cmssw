@@ -234,14 +234,12 @@ class DTttrigWorkflow( DTWorkflow ):
         self.pset_template = 'CalibMuon.DTCalibration.dtDQMClient_cfg'
         self.process = tools.loadCmsProcess(self.pset_template)
         self.prepare_common_write()
-        dqm_files = glob.glob(os.path.join( self.local_path,
-                                            "unmerged_results",
-                                            "dqm*.root") )
-        self.process.source.fileNames =  dqm_files
+        dqm_file = "file:/" + os.path.join( self.local_path,
+                                            "results",
+                                            "DQM.root")
+        self.process.source.fileNames =  [dqm_files]
         self.process.dqmSaver.dirName = os.path.abspath(self.result_path)
-        self.process.dqmSaver.workflow = str(str(self.options.run)
-                                         + "_" + self.options.label
-                                         + "_v" + str(self.options.trial))
+        self.process.dqmSaver.workflow = self.options.datasetpath
         if self.process.DQMStore.collateHistograms == True:
             self.process.dqmSaver.forceRunNumber = str(self.run)
         self.write_pset_file()
