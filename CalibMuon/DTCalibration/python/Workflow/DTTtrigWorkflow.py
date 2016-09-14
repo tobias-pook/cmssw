@@ -237,7 +237,7 @@ class DTttrigWorkflow( DTWorkflow ):
         dqm_file = "file:/" + os.path.join( self.local_path,
                                             "results",
                                             "DQM.root")
-        self.process.source.fileNames =  [dqm_files]
+        self.process.source.fileNames =  [dqm_file]
         self.process.dqmSaver.dirName = os.path.abspath(self.result_path)
         self.process.dqmSaver.workflow = self.options.datasetpath
         if self.process.DQMStore.collateHistograms == True:
