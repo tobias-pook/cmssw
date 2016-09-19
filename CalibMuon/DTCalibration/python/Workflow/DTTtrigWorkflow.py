@@ -241,7 +241,7 @@ class DTttrigWorkflow( DTWorkflow ):
         self.process.dqmSaver.dirName = os.path.abspath(self.result_path)
         self.process.dqmSaver.workflow = self.options.datasetpath
         if self.process.DQMStore.collateHistograms == True:
-            self.process.dqmSaver.forceRunNumber = str(self.run)
+            self.process.dqmSaver.forceRunNumber = str(self.options.run)
         self.write_pset_file()
 
     def summary(self):
