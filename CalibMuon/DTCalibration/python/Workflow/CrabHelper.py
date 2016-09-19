@@ -96,6 +96,21 @@ class CrabHelper(object):
         else:
             return int(stdout)
 
+    def voms_proxy_create(self, passphrase = None):
+        voms = 'cms'
+        if passphrase:
+            p = subprocess.Popen(['voms-proxy-init', '--voms', voms, '--valid', '192:00'],
+                                 stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT)
+            stdout = p.communicate(input=passphrase+'\n')[0]
+            retcode = p.returncode
+            if not retcode == 0:
+                raise ProxyError('Proxy initialization command failed: %s'%stdout)
+        else:
+            retcode = subprocess.call(['voms-proxy-init', '--voms', voms, '--valid', '192:00'])
+        if not retcode == 0:
+            raise ProxyError('Proxy initialization command failed.')
+
+
     def create_crab_config(self):
         """ Create a crab config object dependent on the chosen command option"""
         from CalibMuon.DTCalibration.Workflow.Crabtools.crabConfigParser import CrabConfigParser
@@ -192,10 +207,10 @@ class CrabHelper(object):
     def cert_info(self):
         if not self._cert_info:
             if not self.voms_proxy_time_left() > 0:
-                errmsg = "No valid proxy, please create a proxy before "
-                errmsg += "running dtCalibration or crab"
-                errmsg += " might use wrong voGroup and role"
-                raise ValueError(errmsg)
+                warn_msg = "No valid proxy, a default proxy without a specific"
+                warn_msg = "VOGroup will be used"
+                self.voms_proxy_create()
+                log.warning(warn_msg)
             self._cert_info = self.crabFunctions.CertInfo()
         return self._cert_info
 
