@@ -346,10 +346,11 @@ class CertInfo:
                               stderr = subprocess.PIPE,
                               shell=True)
         stdout, stderr = p.communicate()
+        print stdout
         if p.returncode != 0:
             self.vo = ""
-            self.vo_group = ""
-            self.role = ""
+            self.voGroup = ""
+            self.voRole = ""
         else:
             lines = stdout.split("\n")
             splitline = lines[0].split("/")
@@ -358,9 +359,9 @@ class CertInfo:
             self.vo = splitline[1]
             self.voGroup = splitline[2]
             try:
-                self.role = splitline[2].split("=")[1]
+                self.voRole = splitline[2].split("=")[1]
                 if  "NULL" in self.role:
-                    self.role = ""
+                    self.voRole = ""
             except:
                 self.role = ""
 
