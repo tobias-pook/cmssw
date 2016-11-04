@@ -31,6 +31,11 @@ class CLIHelper(object):
         workflow_subparsers = parser.add_subparsers( help="workflow option help", dest="workflow" )
         return workflow_subparsers
 
+
+    def fill_required_options_prepare_dict(self):
+        common_required = []
+        self.required_options_prepare_dict["submit"] = ["globaltag"]
+
     def fill_required_options_dict(self):
         common_required = ["run"]
         self.required_options_dict["submit"] = common_required
