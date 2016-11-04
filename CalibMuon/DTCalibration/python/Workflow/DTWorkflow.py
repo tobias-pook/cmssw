@@ -199,7 +199,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
         if self.options.preselection:
             self.add_preselection()
 
-    def prepare_common_write(self):
+    def prepare_common_write(self, do_hadd=True):
         """ Common operations used in most prepare_[workflow_mode]_erite functions"""
         self.load_options_command("submit")
         output_path = os.path.join( self.local_path, "unmerged_results" )
@@ -210,7 +210,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
             self.get_output_files(crabtask, output_path)
             log.info("Received files from storage element")
             log.info("Using hadd to merge output files")
-        if not self.options.no_exec:
+        if not self.options.no_exec and do_hadd:
             returncode = tools.haddLocal(output_path, merged_file)
             if returncode != 0:
                 raise RuntimeError("Failed to merge files with hadd")
