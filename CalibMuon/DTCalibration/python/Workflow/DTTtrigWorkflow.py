@@ -149,7 +149,7 @@ class DTttrigWorkflow( DTWorkflow ):
             self.pset_template = 'CalibMuon.DTCalibration.dtResidualCalibration_cosmics_cfg'
         self.process = tools.loadCmsProcess(self.pset_template)
         #~ self.process.GlobalTag.globaltag = cms.string(self.options.globaltag)
-        self.process.GlobalTag.globaltag = self.options.globaltag
+        self.process.GlobalTag.globaltag = cms.string(str(self.options.globaltag))
         self.process.dtResidualCalibration.rootFileName = self.output_file
         self.prepare_common_submit()
         if self.options.inputCalibDB:

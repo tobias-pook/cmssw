@@ -59,6 +59,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
         if hasattr(self.options, "command"):
             msg += " for command %s" % self.options.command
         log.info(msg)
+        if self.options.config_path:
+            self.load_options( self.options.config_path )
         #check if all options to prepare the command are used
         self.check_missing_options(self.required_options_prepare_dict)
         self.prepare_workflow()
@@ -387,7 +389,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
 
     def dump_options(self):
         with open(os.path.join(self.local_path, self.get_config_name()),"w") as out_file:
-            json.dump(vars(self.options), out_file)
+            json.dump(vars(self.options), out_file, indent=4)
 
     def load_options(self, config_file_path):
         if not os.path.exists(config_file_path):
