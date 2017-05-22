@@ -12,6 +12,11 @@ from CLIHelper import CLIHelper
 from CrabHelper import CrabHelper
 import FWCore.ParameterSet.Config as cms
 log = logging.getLogger(__name__)
+nowtime = datetime.datetime.now()
+logging.basicConfig(filename='dtCalibration_'+nowtime.strftime('%Y-%m-%d_%H.%M.%S')+'.log',level=logging.DEBUG)
+
+log.info(" ".join(sys.argv))
+log_fname='dtCalibration_'+nowtime.strftime('%Y-%m-%d_%H.%M.%S')+'.log'
 
 class DTWorkflow(CLIHelper, CrabHelper):
     """ This is the base class for all DTWorkflows and contains some
@@ -20,6 +25,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
         self.options = options
         super( DTWorkflow, self ).__init__()
         self.digilabel = "muonDTDigis"
+        log.info("Initialize DTWorkflow with command:")
+        log.info(" ".join(sys.argv))
         # dict to hold required variables. Can not be marked in argparse to allow
         # loading of options from config
         self.required_options_dict = {}
@@ -82,6 +89,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
         log.debug("Running command %s" % self.options.command)
         # call chosen function
         run_function()
+        # move the log file to the working directory
+        os.rename(log_fname,self.local_path+log_fname)
 
     def prepare_workflow(self):
         """ Abstract implementation of prepare workflow function"""
@@ -149,9 +158,9 @@ class DTWorkflow(CLIHelper, CrabHelper):
             if the pset is processed locally and not with crab.
          """
         if local:
-            connect = os.path.abspath(self.config.inputVDriftDB)
+            connect = os.path.abspath(self.options.inputVDriftDB)
         else:
-            connect = os.path.basename(self.config.inputVDriftDB)
+            connect = os.path.basename(self.options.inputVDriftDB)
         self.addPoolDBESSource( process = self.process,
                                 moduleName = 'vDriftDB',
                                 record = 'DTMtimeRcd',
@@ -238,8 +247,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
 
         self.process.dumpToFile.outputFileName = out_path
 
-    def addPoolDBESSource( self,
-                           process,
+    @staticmethod
+    def addPoolDBESSource( process,
                            moduleName,
                            record,
                            tag,
@@ -257,7 +266,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
                                    label = cms.untracked.string(label)
                                     )),
                                )
-        calibDB.connect = cms.string( connect )
+        calibDB.connect = cms.string( str(connect) )
         #if authPath: calibDB.DBParameters.authenticationPath = authPath
         if 'oracle:' in connect:
             calibDB.DBParameters.authenticationPath = '/afs/cern.ch/cms/DB/conddb'
@@ -282,7 +291,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
                             stderr=subprocess.STDOUT,
                             shell = True)
         stdout = process.communicate()[0]
-        log.debug(stdout)
+        log.info(stdout)
         if process.returncode != 0:
             raise RuntimeError("Failed to use cmsRun for pset %s" % self.pset_name)
         return process.returncode

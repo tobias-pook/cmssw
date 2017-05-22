@@ -96,6 +96,9 @@ class DTvdriftWorkflow( DTWorkflow ):
                 pass
             dbpath = os.path.abspath(self.options.input_dumpDB)
         else:
+            crabtask = self.crabFunctions.CrabTask(crab_config = self.crab_config_filepath,
+                                               initUpdate = False)
+            tag = crabtask.crabConfig.Data.outputDatasetTag
             dbpath = os.path.abspath( os.path.join(self.result_path,
                                                    "vDrift_segment"+ tag + ".db"))
         self.prepare_common_dump(dbpath)

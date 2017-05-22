@@ -360,10 +360,10 @@ class CertInfo:
             self.voGroup = splitline[2]
             try:
                 self.voRole = splitline[2].split("=")[1]
-                if  "NULL" in self.role:
-                    self.voRole = ""
+                if  "NULL" in self.voRole:
+                    self.voGroup = ""
             except:
-                self.role = ""
+                self.voRole = ""
 
 ## Class for a single CrabRequest
 #e
