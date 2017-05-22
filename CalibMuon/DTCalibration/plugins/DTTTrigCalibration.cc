@@ -46,6 +46,7 @@ DTTTrigCalibration::DTTTrigCalibration(const edm::ParameterSet& pset) {
 
   // Get the label to retrieve digis from the event
   digiLabel = pset.getUntrackedParameter<string>("digiLabel");
+  consumes< DTDigiCollection >(edm::InputTag(digiLabel));
 
   // Switch on/off the DB writing
   findTMeanAndSigma = pset.getUntrackedParameter<bool>("fitAndWrite", false);
@@ -62,7 +63,7 @@ DTTTrigCalibration::DTTTrigCalibration(const edm::ParameterSet& pset) {
   theFitter = new DTTimeBoxFitter();
   if(debug)
     theFitter->setVerbosity(1);
-  
+
   double sigmaFit = pset.getUntrackedParameter<double>("sigmaTTrigFit",10.);
   theFitter->setFitSigma(sigmaFit);
 
