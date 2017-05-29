@@ -164,7 +164,7 @@ class CrabHelper(object):
             self.crab_config.add_section('User')
             if self.cert_info.voGroup:
                 self.crab_config.set('User', "voGroup", self.cert_info.voGroup)
-            if self.cert_info.role:
+            if self.cert_info.voRole:
                 self.crab_config.set('User', "voRole", self.cert_info.voRole)
         log.debug("Created crab config: %s " % self.crab_config_filename)
 

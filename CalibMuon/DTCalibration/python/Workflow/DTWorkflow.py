@@ -20,6 +20,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
         self.options = options
         super( DTWorkflow, self ).__init__()
         self.digilabel = "muonDTDigis"
+        log.info("Initialize DTWorkflow with command:")
+        log.info(" ".join(sys.argv))
         # dict to hold required variables. Can not be marked in argparse to allow
         # loading of options from config
         self.required_options_dict = {}
@@ -149,9 +151,9 @@ class DTWorkflow(CLIHelper, CrabHelper):
             if the pset is processed locally and not with crab.
          """
         if local:
-            connect = os.path.abspath(self.config.inputVDriftDB)
+            connect = os.path.abspath(self.options.inputVDriftDB)
         else:
-            connect = os.path.basename(self.config.inputVDriftDB)
+            connect = os.path.basename(self.options.inputVDriftDB)
         self.addPoolDBESSource( process = self.process,
                                 moduleName = 'vDriftDB',
                                 record = 'DTMtimeRcd',
@@ -238,8 +240,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
 
         self.process.dumpToFile.outputFileName = out_path
 
-    def addPoolDBESSource( self,
-                           process,
+    @staticmethod
+    def addPoolDBESSource( process,
                            moduleName,
                            record,
                            tag,
@@ -257,7 +259,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
                                    label = cms.untracked.string(label)
                                     )),
                                )
-        calibDB.connect = cms.string( connect )
+        calibDB.connect = cms.string( str(connect) )
         #if authPath: calibDB.DBParameters.authenticationPath = authPath
         if 'oracle:' in connect:
             calibDB.DBParameters.authenticationPath = '/afs/cern.ch/cms/DB/conddb'

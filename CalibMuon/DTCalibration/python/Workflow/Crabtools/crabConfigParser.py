@@ -57,11 +57,15 @@ class CrabConfigParser(ConfigParser):
                 sectionLines.append('config.%s.%s = %s'%(section,configItem[0],configItem[1]))
             else:
                 parsed = False
-                try:
-                    sectionLines.append('config.%s.%s = %d'%(section,configItem[0],int(configItem[1])))
+                if configItem[0]=="runRange" :
+                    sectionLines.append('config.%s.%s = \'%s\''%(section,configItem[0],configItem[1]))
                     parsed = True
-                except:
-                    pass
+                if not parsed:
+                    try:
+                        sectionLines.append('config.%s.%s = %d'%(section,configItem[0],int(configItem[1])))
+                        parsed = True
+                    except:
+                        pass
                 if not parsed:
                     try:
                         sectionLines.append('config.%s.%s = %.2f'%(section,configItem[0],float(configItem[1])))

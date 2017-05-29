@@ -237,24 +237,13 @@ class DTttrigWorkflow( DTWorkflow ):
         dqm_files = glob.glob(os.path.join( self.local_path,
                                             "unmerged_results",
                                             "DQM_*.root"))
+        dqm_files[:] = ["file://"+txt for txt in dqm_files]
         self.process.source.fileNames =  dqm_files
         self.process.dqmSaver.dirName = os.path.abspath(self.result_path)
-        self.process.dqmSaver.workflow = self.options.datasetpath
+        self.process.dqmSaver.workflow = str(self.options.datasetpath)
         if self.process.DQMStore.collateHistograms == True:
-            self.process.dqmSaver.forceRunNumber = str(self.options.run)
+            self.process.dqmSaver.forceRunNumber = self.options.run
         self.write_pset_file()
-
-    def prepare_validation_merge(self):
-        self.pset_name = 'dtDQMMerge_cfg.py'
-        self.pset_template = 'CalibMuon.DTCalibration.dtDQMMerge_cfg'
-
-        self.process = tools.loadCmsProcess(self.pset_template)
-        dqm_files = glob.glob(os.path.join( self.local_path,
-                                            "unmerged_results",
-                                            "DQM_*.root"))
-        self.process.source.fileNames = dqm_files
-        output_name = "DQM-" + sel.run + "-" + self.options.label
-        self.process.output.fileName
 
     def summary(self):
         pass
@@ -408,12 +397,6 @@ class DTttrigWorkflow( DTWorkflow ):
 
         ttrig_validation_write_parser = ttrig_validation_subparsers.add_parser(
             "write",
-            parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
-                    super(DTttrigWorkflow,cls).get_write_options_parser()],
-            help = "Create summary for validation")
-
-        ttrig_validation_merge_parser = ttrig_validation_subparsers.add_parser(
-            "merge",
             parents=[super(DTttrigWorkflow,cls).get_common_options_parser(),
                     super(DTttrigWorkflow,cls).get_write_options_parser()],
             help = "Create summary for validation")
