@@ -9,5 +9,9 @@ MessageLogger.cerr =  cms.untracked.PSet(
     noLineBreaks = cms.untracked.bool(False),
     DEBUG = cms.untracked.PSet(limit = cms.untracked.int32(0)),
     INFO = cms.untracked.PSet(limit = cms.untracked.int32(0)),
-    Calibration = cms.untracked.PSet(limit = cms.untracked.int32(-1))
+    Calibration = cms.untracked.PSet(limit = cms.untracked.int32(0)),
+    FwkReport = cms.untracked.PSet(
+	reportEvery = cms.untracked.int32(10000)
+    )
 )
+

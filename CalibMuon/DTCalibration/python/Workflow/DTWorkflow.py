@@ -12,6 +12,11 @@ from CLIHelper import CLIHelper
 from CrabHelper import CrabHelper
 import FWCore.ParameterSet.Config as cms
 log = logging.getLogger(__name__)
+nowtime = datetime.datetime.now()
+logging.basicConfig(filename='dtCalibration_'+nowtime.strftime('%Y-%m-%d_%H.%M.%S')+'.log',level=logging.DEBUG)
+
+log.info(" ".join(sys.argv))
+log_fname='dtCalibration_'+nowtime.strftime('%Y-%m-%d_%H.%M.%S')+'.log'
 
 class DTWorkflow(CLIHelper, CrabHelper):
     """ This is the base class for all DTWorkflows and contains some
@@ -84,6 +89,8 @@ class DTWorkflow(CLIHelper, CrabHelper):
         log.debug("Running command %s" % self.options.command)
         # call chosen function
         run_function()
+        # move the log file to the working directory
+        os.rename(log_fname,self.local_path+log_fname)
 
     def prepare_workflow(self):
         """ Abstract implementation of prepare workflow function"""
@@ -283,7 +290,7 @@ class DTWorkflow(CLIHelper, CrabHelper):
                             stderr=subprocess.STDOUT,
                             shell = True)
         stdout = process.communicate()[0]
-        log.debug(stdout)
+        log.info(stdout)
         if process.returncode != 0:
             raise RuntimeError("Failed to use cmsRun for pset %s" % self.pset_name)
         return process.returncode

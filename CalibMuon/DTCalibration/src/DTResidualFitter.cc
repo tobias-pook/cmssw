@@ -12,6 +12,8 @@
 #include "TF1.h"
 #include "TString.h"
 
+using namespace std;
+
 DTResidualFitter::DTResidualFitter(bool debug):debug_(debug) {}
 
 DTResidualFitter::~DTResidualFitter() {}

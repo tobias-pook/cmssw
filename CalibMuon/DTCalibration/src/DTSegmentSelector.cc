@@ -13,6 +13,8 @@
 #include "CondFormats/DataRecord/interface/DTStatusFlagRcd.h"
 #include "CondFormats/DTObjects/interface/DTStatusFlag.h"
 
+using namespace std;
+
 bool DTSegmentSelector::operator() (DTRecSegment4D const& segment, edm::Event const& event, edm::EventSetup const& setup){
 
   bool result = true;

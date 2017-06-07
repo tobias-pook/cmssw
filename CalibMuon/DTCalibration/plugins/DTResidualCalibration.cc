@@ -143,6 +143,7 @@ void DTResidualCalibration::analyze(const edm::Event& event, const edm::EventSet
 
            float residualOnDistance = DTRecHitSegmentResidual().compute(dtGeom_,*recHit1D,*segment);
            LogTrace("Calibration") << "Wire Id " << wireId << " residual on distance: " << residualOnDistance;
+           if (segmok<100) std::cout << "Wire Id " << wireId << " residual on distance: " << residualOnDistance << std::endl;
 
            fillHistos(wireId.superlayerId(), segmDistance, residualOnDistance);
            if(detailedAnalysis_) fillHistos(wireId.layerId(), segmDistance, residualOnDistance);
